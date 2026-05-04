@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asesmen Kesadaran Keamanan Siber</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['DM Sans', 'sans-serif'],
+          mono: ['DM Mono', 'monospace'],
+        },
+        colors: {
+          navy: {
+            50: '#eef3fb',
+            100: '#d5e4f5',
+            200: '#aec9eb',
+            300: '#7aa8db',
+            400: '#4a86ca',
+            500: '#2566b5',
+            600: '#185FA5',
+            700: '#0C447C',
+            800: '#0a3463',
+            900: '#08264a',
+          }
+        },
+        animation: {
+          'fade-in': 'fadeIn 0.4s ease-out',
+          'slide-up': 'slideUp 0.35s ease-out',
+          'pop': 'pop 0.2s ease-out',
+          'bar-fill': 'barFill 0.8s ease-out forwards',
+        },
+        keyframes: {
+          fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+          slideUp: { '0%': { opacity: '0', transform: 'translateY(16px)' }, '100%': { opacity: '1', transform: 'translateY(0)' } },
+          pop: { '0%': { transform: 'scale(0.95)' }, '60%': { transform: 'scale(1.02)' }, '100%': { transform: 'scale(1)' } },
+          barFill: { '0%': { width: '0%' }, '100%': { width: 'var(--target-width)' } },
+        }
+      }
+    }
+  }
+</script>
+<style>
+  body { font-family: 'DM Sans', sans-serif; }
+  .opt-item { transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+  .opt-item:hover { transform: translateX(2px); }
+  .opt-item.selected { border-color: #185FA5; background: #eef3fb; }
+  .opt-item.selected .radio-dot { background: #185FA5; border-color: #185FA5; }
+  .opt-item.selected .radio-dot::after { display: block; }
+  .radio-dot { position: relative; width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid #d1d5db; flex-shrink: 0; margin-top: 1px; background: white; transition: all 0.15s; }
+  .radio-dot::after { content: ''; display: none; width: 8px; height: 8px; border-radius: 50%; background: #fff; position: absolute; top: 3px; left: 3px; }
+  .prog-bar { transition: width 0.5s cubic-bezier(0.4,0,0.2,1); }
+  .screen { display: none; }
+  .screen.on { display: block; animation: slideUp 0.35s ease-out; }
+  .btn-primary { background: #185FA5; color: white; transition: background 0.15s, transform 0.1s, box-shadow 0.15s; }
+  .btn-primary:hover:not(:disabled) { background: #0C447C; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(24,95,165,0.3); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-secondary { background: white; color: #374151; border: 1.5px solid #e5e7eb; transition: background 0.15s, border-color 0.15s; }
+  .btn-secondary:hover:not(:disabled) { background: #f9fafb; border-color: #d1d5db; }
+  .btn-secondary:disabled { opacity: 0.35; cursor: not-allowed; }
+  .score-fill { height: 100%; border-radius: 4px; animation: barFill 0.8s ease-out forwards; }
+  @keyframes barFill { from { width: 0% } to { width: var(--target-width) } }
+  .badge-sadar { background: #dcfce7; color: #166534; }
+  .badge-netral { background: #dbeafe; color: #1e40af; }
+  .badge-risiko { background: #fee2e2; color: #991b1b; }
+  .step-card { transition: transform 0.15s, box-shadow 0.15s; }
+  .step-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+  .shield-icon { filter: drop-shadow(0 2px 8px rgba(24,95,165,0.3)); }
+  .noise-bg::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.03'/%3E%3C/svg%3E"); pointer-events: none; z-index: 0; }
+</style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+
+<!-- Background decorative -->
+<div class="fixed inset-0 overflow-hidden pointer-events-none z-0">
+  <div class="absolute -top-32 -right-32 w-96 h-96 bg-blue-100 rounded-full opacity-40 blur-3xl"></div>
+  <div class="absolute -bottom-32 -left-32 w-96 h-96 bg-indigo-100 rounded-full opacity-30 blur-3xl"></div>
+</div>
+
+<div class="relative z-10 min-h-screen flex items-start justify-center py-8 px-4">
+  <div class="w-full max-w-xl">
+
+    <!-- Card wrapper -->
+    <div class="bg-white rounded-3xl shadow-xl shadow-slate-200/80 overflow-hidden border border-slate-100">
+
+      <!-- Top accent bar -->
+      <div class="h-1.5 bg-gradient-to-r from-navy-600 via-blue-500 to-indigo-400"></div>
+
+      <div id="app"></div>
+
+    </div>
+
+    <!-- Footer credit -->
+    <p class="text-center text-xs text-slate-400 mt-5 font-mono">Asesmen Kesadaran Keamanan Siber · 12 Soal</p>
+
+  </div>
+</div>
+
+<script>
+var Qs=[
+  {id:1,ctx:"Anda menerima email dari alamat noreply@google-support.net yang meminta Anda segera mengganti password akun Google karena ada aktivitas mencurigakan. Email tersebut menyertakan tombol 'Amankan Akun Sekarang'.",q:"Apa yang akan Anda lakukan?",opts:[{t:"Langsung klik tombol dan ganti password mengikuti instruksi email tersebut.",sc:"R"},{t:"Abaikan email — lanjut bekerja karena sibuk dan tidak ada hal mencurigakan yang dialami.",sc:"N"},{t:"Cek domain pengirim, hover tombol untuk melihat URL tujuan, lalu buka langsung myaccount.google.com tanpa mengklik link dari email.",sc:"S"}]},
+  {id:2,ctx:"Anda sedang berada di bandara dan perlu mengecek email kantor penting. Tersedia WiFi gratis bernama 'Bandara_Free_WiFi'. HP Anda tidak memiliki VPN yang terpasang.",q:"Bagaimana tindakan Anda?",opts:[{t:"Langsung terhubung ke WiFi tersebut dan membuka email kantor seperti biasa.",sc:"R"},{t:"Terhubung ke WiFi tersebut, tapi hanya membuka media sosial — tidak membuka email atau perbankan.",sc:"N"},{t:"Gunakan data seluler pribadi untuk membuka email kantor, atau instal VPN terlebih dahulu sebelum menggunakan WiFi publik.",sc:"S"}]},
+  {id:3,ctx:"Teman Anda mengirim pesan WhatsApp: 'Ada video viral artis terkenal, klik link ini untuk nonton.' Link tersebut bukan dari platform video resmi seperti YouTube atau TikTok.",q:"Apa yang Anda lakukan?",opts:[{t:"Langsung klik dan tonton — kalau dari teman pasti aman.",sc:"R"},{t:"Ragu-ragu, tidak diklik, tapi juga tidak memperingatkan teman.",sc:"N"},{t:"Tidak mengklik link tersebut dan mengingatkan teman bahwa link seperti itu bisa mengandung malware — sarankan teman untuk berhati-hati.",sc:"S"}]},
+  {id:4,ctx:"Anda melihat postingan di grup WhatsApp yang menyatakan bahwa pemerintah memberikan bantuan tunai Rp 2,5 juta untuk semua pegawai. Postingan menyertakan link pendaftaran.",q:"Respons Anda terhadap informasi ini?",opts:[{t:"Langsung klik link dan isi data pribadi untuk mendaftar — takut ketinggalan bantuan.",sc:"R"},{t:"Tidak mengklik, tapi juga tidak meneruskan. Menunggu konfirmasi dari orang lain.",sc:"N"},{t:"Langsung verifikasi melalui situs resmi instansi terkait, laporkan ke admin grup jika terbukti hoaks, dan ingatkan anggota grup untuk tidak menyebarkan sebelum diverifikasi.",sc:"S"}]},
+  {id:5,ctx:"Anda baru membuat akun baru untuk sistem informasi kantor. Sistem meminta Anda membuat password.",q:"Password mana yang akan Anda gunakan?",opts:[{t:"Nama lengkap + tahun lahir (contoh: Ahmad1985) — mudah diingat.",sc:"R"},{t:"Kombinasi kata sederhana dengan angka (contoh: kantor123!) — cukup mudah diingat.",sc:"N"},{t:"Frasa acak panjang yang tidak mengandung info pribadi, minimal 12 karakter dengan campuran huruf besar, kecil, angka, dan simbol (contoh: Langit#Biru9Malam!).",sc:"S"}]},
+  {id:6,ctx:"Anda sedang asyik memposting foto makan siang di Instagram. Kolom caption memungkinkan Anda menambahkan berbagai informasi.",q:"Informasi apa yang Anda cantumkan bersama foto tersebut?",opts:[{t:"Nama restoran, alamat lengkap, jam makan, bersama siapa, dan tag teman-teman yang hadir.",sc:"R"},{t:"Nama restoran dan foto makanan — tanpa tag lokasi spesifik.",sc:"N"},{t:"Hanya foto makanan dengan caption singkat — tidak menandai lokasi spesifik, tidak menyebutkan waktu atau rutinitas harian.",sc:"S"}]},
+  {id:7,ctx:"Anda menerima telepon dari seseorang yang mengaku sebagai petugas bank. Ia mengatakan kartu Anda digunakan untuk transaksi mencurigakan dan meminta kode OTP yang baru saja dikirim ke HP Anda untuk 'membatalkan transaksi'.",q:"Apa yang akan Anda lakukan?",opts:[{t:"Memberikan kode OTP — situasinya terasa darurat dan petugas terdengar meyakinkan.",sc:"R"},{t:"Ragu memberikan kode, tapi akhirnya memberikan sebagian informasi untuk 'mengonfirmasi identitas'.",sc:"N"},{t:"Menolak memberikan kode OTP, menutup telepon, lalu menghubungi call center bank langsung menggunakan nomor resmi di kartu atau situs resmi bank.",sc:"S"}]},
+  {id:8,ctx:"Anda menemukan bahwa akun Instagram Anda mendadak tidak bisa diakses. Ada pemberitahuan bahwa email dan nomor HP akun telah diubah.",q:"Langkah pertama yang Anda ambil?",opts:[{t:"Pasrah — buat akun Instagram baru dari awal.",sc:"R"},{t:"Mencoba login berkali-kali dengan berbagai kombinasi password lama.",sc:"N"},{t:"Segera gunakan fitur 'Dapatkan bantuan lebih lanjut' di halaman login Instagram, dan minta teman melaporkan profil tersebut sambil mempersiapkan verifikasi identitas.",sc:"S"}]},
+  {id:9,ctx:"Anda melihat video di Facebook yang memperlihatkan seorang pejabat pemerintah memberikan pernyataan mengejutkan. Video tersebut sudah dibagikan ribuan kali dan komentar penuh dukungan.",q:"Bagaimana Anda menyikapi video tersebut?",opts:[{t:"Langsung membagikan ke grup keluarga — sudah viral berarti pasti benar.",sc:"R"},{t:"Menonton tapi tidak membagikan karena tidak yakin — tanpa melakukan verifikasi lebih lanjut.",sc:"N"},{t:"Periksa ciri-ciri deepfake (sinkronisasi bibir, tepi wajah), cari berita di media kredibel, dan hanya membagikan jika sudah terverifikasi. Laporkan jika terbukti manipulasi.",sc:"S"}]},
+  {id:10,ctx:"Anda mendapat notifikasi dari aplikasi di HP bahwa ada pembaruan sistem operasi tersedia. Anda sedang sibuk dan memiliki banyak pekerjaan yang harus diselesaikan.",q:"Apa tindakan Anda terhadap pembaruan ini?",opts:[{t:"Klik 'Ingatkan nanti' — sudah berminggu-minggu begitu dan tidak ada masalah.",sc:"R"},{t:"Menunda dulu, berencana update nanti malam tapi sering lupa.",sc:"N"},{t:"Segera jadwalkan pembaruan dan jalankan sesegera mungkin — pembaruan menutup celah keamanan yang bisa dieksploitasi peretas.",sc:"S"}]},
+  {id:11,ctx:"Anda menggunakan password yang sama untuk akun email kantor, media sosial, dan aplikasi perbankan karena lebih mudah diingat.",q:"Menurut Anda, apakah praktik ini aman?",opts:[{t:"Aman — selama passwordnya cukup kuat, tidak ada masalah menggunakan satu password untuk semua.",sc:"R"},{t:"Kurang ideal, tapi cukup dengan membuat password agak berbeda di tiap akun (contoh: menambahkan angka di akhir).",sc:"N"},{t:"Berbahaya — jika satu akun bocor, semua akun lain ikut terancam. Setiap akun harus memiliki password unik, dan gunakan password manager untuk mengelolanya.",sc:"S"}]},
+  {id:12,ctx:"Anda menemukan konten di media sosial yang menyebarkan informasi kesehatan yang tampaknya menyesatkan dan bisa membahayakan masyarakat.",q:"Tindakan apa yang Anda ambil?",opts:[{t:"Meneruskan konten tersebut ke grup keluarga dengan komentar 'Hati-hati ya' — semoga bermanfaat.",sc:"R"},{t:"Tidak meneruskan dan mengabaikannya — bukan urusan Anda untuk meluruskan.",sc:"N"},{t:"Verifikasi di platform cek fakta (turnbackhoax.id atau cekfakta.com), laporkan konten ke platform, dan jika terbukti hoaks — bagikan informasi yang benar kepada orang-orang yang mungkin sudah terpapar.",sc:"S"}]}
+];
+
+var state={screen:'intro',cur:0,answers:[],shuffled:[]};
+
+function shuffleOpts(q){
+  var o=[...q.opts];
+  for(var i=o.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var tmp=o[i];o[i]=o[j];o[j]=tmp;}
+  return {...q,opts:o};
+}
+
+function init(){
+  state.shuffled=Qs.map(shuffleOpts);
+  state.screen='intro';state.cur=0;state.answers=[];
+  render();
+}
+
+function render(){
+  var app=document.getElementById('app');
+  if(state.screen==='intro') app.innerHTML=renderIntro();
+  else if(state.screen==='quiz') app.innerHTML=renderQuiz();
+  else if(state.screen==='result') app.innerHTML=renderResult();
+}
+
+function renderIntro(){
+  return `
+  <div class="px-8 py-10 text-center">
+    <!-- Icon -->
+    <div class="flex justify-center mb-6">
+      <div class="relative">
+        <div class="w-20 h-20 bg-gradient-to-br from-navy-600 to-navy-400 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-200">
+          <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 12.75L11.25 15 15 9.75m-3-7.036A11.959 11.959 0 013.598 6 11.99 11.99 0 003 9.749c0 5.592 3.824 10.29 9 11.623 5.176-1.332 9-6.03 9-11.622 0-1.31-.21-2.571-.598-3.751h-.152c-3.196 0-6.1-1.249-8.25-3.285z"/>
+          </svg>
+        </div>
+        <div class="absolute -top-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full border-2 border-white flex items-center justify-center">
+          <div class="w-2 h-2 bg-white rounded-full"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Badge -->
+    <span class="inline-block text-xs font-semibold tracking-widest uppercase text-navy-600 bg-navy-50 px-4 py-1.5 rounded-full mb-4 border border-navy-100">Asesmen Akhir Pelatihan</span>
+
+    <!-- Title -->
+    <h1 class="text-2xl font-bold text-slate-800 leading-tight mb-3">Seberapa sadar Anda terhadap<br>keamanan siber?</h1>
+    <p class="text-sm text-slate-500 leading-relaxed mb-8 max-w-sm mx-auto">Jawab 12 skenario situasional berikut secara jujur. Pilih yang paling mencerminkan apa yang <em>sebenarnya</em> akan Anda lakukan.</p>
+
+    <!-- Stats -->
+    <div class="flex justify-center gap-8 mb-8">
+      <div class="text-center">
+        <div class="text-3xl font-bold text-navy-600 font-mono">12</div>
+        <div class="text-xs text-slate-400 mt-0.5">Soal situasional</div>
+      </div>
+      <div class="w-px bg-slate-100"></div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-navy-600 font-mono">~8</div>
+        <div class="text-xs text-slate-400 mt-0.5">Menit</div>
+      </div>
+      <div class="w-px bg-slate-100"></div>
+      <div class="text-center">
+        <div class="text-3xl font-bold text-navy-600 font-mono">3</div>
+        <div class="text-xs text-slate-400 mt-0.5">Kategori hasil</div>
+      </div>
+    </div>
+
+    <!-- Category pills -->
+    <div class="flex gap-2 justify-center mb-8">
+      <span class="px-4 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">🟢 Sadar</span>
+      <span class="px-4 py-1.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 border border-blue-100">🔵 Netral</span>
+      <span class="px-4 py-1.5 rounded-full text-xs font-semibold bg-red-50 text-red-700 border border-red-100">🔴 Berisiko</span>
+    </div>
+
+    <!-- CTA -->
+    <button onclick="startQuiz()" class="btn-primary w-full py-3.5 rounded-2xl text-sm font-semibold cursor-pointer border-0 flex items-center justify-center gap-2">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>
+      Mulai Asesmen
+    </button>
+
+    <p class="text-xs text-slate-400 mt-4">Tidak ada jawaban yang salah — ini bukan ujian benar/salah</p>
+  </div>`;
+}
+
+function startQuiz(){state.screen='quiz';state.cur=0;state.answers=[];render();}
+
+function renderQuiz(){
+  var q=state.shuffled[state.cur];
+  var pct=Math.round((state.cur/Qs.length)*100);
+  var sel=state.answers[state.cur];
+  var isLast=(state.cur===Qs.length-1);
+
+  var optsHtml='';
+  q.opts.forEach(function(o,i){
+    var isSel=(sel===i);
+    optsHtml+=`
+    <div class="opt-item${isSel?' selected':''} flex items-start gap-3 p-4 border-2 ${isSel?'border-navy-500 bg-navy-50':'border-slate-100 bg-white'} rounded-2xl cursor-pointer hover:border-navy-300 hover:bg-slate-50 mb-3"
+         onclick="selectOpt(${i})">
+      <div class="radio-dot mt-0.5 ${isSel?'bg-navy-600 border-navy-600':''}"></div>
+      <span class="text-sm text-slate-700 leading-relaxed">${o.t}</span>
+    </div>`;
+  });
+
+  return `
+  <div>
+    <!-- Header -->
+    <div class="px-6 pt-6 pb-4">
+      <div class="flex items-center justify-between mb-3">
+        <span class="font-mono text-xs font-medium text-slate-400 tracking-wider uppercase">Soal ${state.cur+1} / ${Qs.length}</span>
+        <span class="text-xs px-2.5 py-1 rounded-full font-medium ${sel!==undefined ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}">
+          ${sel!==undefined ? '✓ Sudah dipilih' : 'Pilih salah satu'}
+        </span>
+      </div>
+      <!-- Progress bar -->
+      <div class="h-2 bg-slate-100 rounded-full overflow-hidden">
+        <div class="prog-bar h-full bg-gradient-to-r from-navy-600 to-blue-400 rounded-full" style="width:${pct}%"></div>
+      </div>
+      <!-- Progress dots -->
+      <div class="flex gap-1 mt-2">
+        ${Array.from({length:Qs.length},(_,i)=>`<div class="flex-1 h-1 rounded-full ${i<state.cur?'bg-navy-500':i===state.cur?'bg-navy-300':'bg-slate-100'}"></div>`).join('')}
+      </div>
+    </div>
+
+    <!-- Question body -->
+    <div class="px-6 pb-2">
+      ${q.ctx ? `
+      <div class="bg-slate-50 border border-slate-200 rounded-2xl p-4 mb-4 text-xs text-slate-600 leading-relaxed border-l-4 border-l-navy-400">
+        <div class="flex gap-2 items-start">
+          <svg class="w-3.5 h-3.5 text-navy-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd"/></svg>
+          <p>${q.ctx}</p>
+        </div>
+      </div>` : ''}
+      <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 font-mono">Pertanyaan</p>
+      <p class="text-base font-semibold text-slate-800 leading-snug mb-5">${q.q}</p>
+      <div>${optsHtml}</div>
+    </div>
+
+    <!-- Footer nav -->
+    <div class="px-6 pb-6 flex items-center justify-between gap-3 mt-2">
+      <button onclick="prevQ()" ${state.cur===0?'disabled':''} class="btn-secondary flex items-center gap-1.5 px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+        Kembali
+      </button>
+      ${isLast
+        ? `<button onclick="showResult()" ${sel===undefined?'disabled':''} class="btn-primary flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold cursor-pointer border-0">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+            Lihat Hasil
+           </button>`
+        : `<button onclick="nextQ()" ${sel===undefined?'disabled':''} class="btn-primary flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold cursor-pointer border-0">
+            Lanjut
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+           </button>`
+      }
+    </div>
+  </div>`;
+}
+
+function selectOpt(i){
+  state.answers[state.cur]=i;
+  render();
+}
+
+function nextQ(){
+  if(state.answers[state.cur]===undefined) return;
+  state.cur++;render();
+}
+
+function prevQ(){
+  if(state.cur>0){state.cur--;render();}
+}
+
+function showResult(){
+  if(state.answers[state.cur]===undefined) return;
+  state.screen='result';render();
+}
+
+function calcScore(){
+  var counts={S:0,N:0,R:0};
+  state.answers.forEach(function(ai,qi){
+    var sc=state.shuffled[qi].opts[ai].sc;
+    counts[sc]++;
+  });
+  return counts;
+}
+
+function renderResult(){
+  var c=calcScore();
+  var total=Qs.length;
+  var pctS=Math.round(c.S/total*100);
+  var pctN=Math.round(c.N/total*100);
+  var pctR=Math.round(c.R/total*100);
+
+  var cat,catScheme,catTitle,catSub,catEmoji,recs;
+
+  if(c.S>=8){
+    cat='SADAR';
+    catEmoji='🛡️';
+    catScheme={
+      badge:'bg-emerald-50 text-emerald-700 border border-emerald-200',
+      icon:'from-emerald-500 to-emerald-400',
+      iconBg:'bg-emerald-500',
+      title:'text-emerald-800',
+      recBg:'bg-emerald-50 border-emerald-200',
+      recTitle:'text-emerald-800',
+      bar:'bg-emerald-500',
+    };
+    catTitle='Pengguna Sadar Siber';
+    catSub='Anda memiliki kesadaran tinggi terhadap risiko keamanan siber dan mampu melakukan langkah pencegahan secara mandiri. Anda tidak hanya melindungi diri sendiri, tetapi juga berkontribusi aktif dalam mencegah penyebaran konten negatif.';
+    recs=[
+      {icon:'🚀',t:'Pertahankan dan tingkatkan',d:'Teruskan kebiasaan baik seperti verifikasi sebelum share, penggunaan password unik, dan aktivasi 2FA. Pertimbangkan menggunakan hardware key untuk akun paling kritis.'},
+      {icon:'🤝',t:'Jadilah agen perubahan',d:'Bagikan pengetahuan Anda kepada rekan kerja dan keluarga. Orang dengan kesadaran siber tinggi sangat dibutuhkan untuk membantu orang-orang di sekitar mereka.'},
+      {icon:'👁️',t:'Lanjutkan pemantauan aktif',d:'Gunakan haveibeenpwned.com secara rutin, pantau aktivitas akun, dan selalu perbarui perangkat dan aplikasi tepat waktu.'}
+    ];
+  } else if(c.R>=7){
+    cat='BERISIKO';
+    catEmoji='⚠️';
+    catScheme={
+      badge:'bg-red-50 text-red-700 border border-red-200',
+      icon:'from-red-500 to-rose-400',
+      iconBg:'bg-red-500',
+      title:'text-red-800',
+      recBg:'bg-red-50 border-red-200',
+      recTitle:'text-red-800',
+      bar:'bg-red-500',
+    };
+    catTitle='Pengguna Berisiko';
+    catSub='Anda masih kurang peduli terhadap keamanan siber dan rentan terpapar maupun turut menyebarkan konten negatif. Beberapa kebiasaan digital Anda saat ini dapat membahayakan keamanan data pribadi, akun, bahkan orang-orang di sekitar Anda.';
+    recs=[
+      {icon:'🔐',t:'Prioritas utama: aktifkan 2FA sekarang',d:'Buka pengaturan WhatsApp, Instagram, dan Facebook — aktifkan autentikasi dua faktor hari ini. Ini adalah langkah paling mudah yang langsung meningkatkan keamanan akun Anda.'},
+      {icon:'🤐',t:'Ubah kebiasaan berbagi informasi',d:'Terapkan prinsip "berpikir dua kali sebelum posting". Jangan bagikan tanggal lahir, nomor HP, atau lokasi rumah secara publik.'},
+      {icon:'✅',t:'Verifikasi sebelum menyebarkan',d:'Setiap kali menerima informasi mengejutkan, cek dulu di turnbackhoax.id atau cekfakta.com. Jangan jadikan diri Anda tanpa sadar sebagai penyebar hoaks.'}
+    ];
+  } else {
+    cat='NETRAL';
+    catEmoji='🔵';
+    catScheme={
+      badge:'bg-blue-50 text-blue-700 border border-blue-200',
+      icon:'from-navy-600 to-blue-400',
+      iconBg:'bg-navy-600',
+      title:'text-navy-800',
+      recBg:'bg-blue-50 border-blue-200',
+      recTitle:'text-navy-700',
+      bar:'bg-navy-500',
+    };
+    catTitle='Pengguna Netral';
+    catSub='Anda cenderung menggunakan internet dan media sosial tanpa memperhatikan secara mendalam potensi ancaman yang ada. Anda sudah memiliki beberapa insting yang benar, namun belum konsisten dalam menerapkan langkah-langkah keamanan siber.';
+    recs=[
+      {icon:'🔑',t:'Tingkatkan dari hal-hal kecil',d:'Mulai dengan mengganti password lama yang lemah, mengaktifkan 2FA, dan membiasakan diri memeriksa URL sebelum mengklik tautan apapun.'},
+      {icon:'🔍',t:'Bangun kebiasaan verifikasi',d:'Sebelum meneruskan pesan atau informasi di grup manapun, luangkan 2 menit untuk mengecek kebenarannya. Jadikan ini refleks — bukan beban.'},
+      {icon:'📚',t:'Pelajari tanda-tanda ancaman siber',d:'Kenali ciri phishing, WiFi palsu, dan konten deepfake. Semakin Anda memahami cara kerja ancaman, semakin mudah menghindarinya.'}
+    ];
+  }
+
+  var recsHtml=recs.map(function(r){
+    return `<div class="${catScheme.recBg} border rounded-2xl p-4 mb-3">
+      <div class="flex items-start gap-3">
+        <span class="text-lg flex-shrink-0">${r.icon}</span>
+        <div>
+          <div class="text-sm font-semibold ${catScheme.recTitle} mb-1">${r.t}</div>
+          <div class="text-xs text-slate-600 leading-relaxed">${r.d}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  var stepCards=[
+    {title:'Aktifkan 2FA',desc:'Buka pengaturan WhatsApp atau Instagram — aktifkan verifikasi dua langkah hari ini.',color:'text-navy-600',bg:'bg-navy-50',icon:'🔐'},
+    {title:'Cek kebocoran data',desc:'Kunjungi haveibeenpwned.com — masukkan email untuk cek apakah sudah bocor.',color:'text-emerald-700',bg:'bg-emerald-50',icon:'🔍'},
+    {title:'Uji kekuatan password',desc:'Kunjungi passwordmonster.com — uji password yang biasa Anda gunakan.',color:'text-amber-700',bg:'bg-amber-50',icon:'💪'},
+    {title:'Set akun ke privat',desc:'Buka pengaturan Instagram atau Facebook — ubah akun menjadi privat sekarang.',color:'text-violet-700',bg:'bg-violet-50',icon:'🔒'}
+  ].map(function(s){
+    return `<div class="step-card ${s.bg} rounded-xl p-3 border border-slate-100">
+      <div class="text-base mb-1">${s.icon}</div>
+      <div class="text-xs font-semibold ${s.color} mb-1">${s.title}</div>
+      <div class="text-xs text-slate-500 leading-relaxed">${s.desc}</div>
+    </div>`;
+  }).join('');
+
+  return `
+  <div class="px-6 py-8">
+    <!-- Result header -->
+    <div class="text-center mb-8">
+      <div class="flex justify-center mb-4">
+        <div class="w-16 h-16 bg-gradient-to-br ${catScheme.icon} rounded-2xl flex items-center justify-center shadow-lg text-2xl">
+          ${catEmoji}
+        </div>
+      </div>
+      <div class="text-xs font-mono font-medium text-slate-400 uppercase tracking-wider mb-2">Kategori Anda</div>
+      <span class="inline-block ${catScheme.badge} px-5 py-2 rounded-full text-sm font-bold mb-4">${catTitle}</span>
+      <p class="text-sm text-slate-600 leading-relaxed max-w-sm mx-auto">${catSub}</p>
+    </div>
+
+    <!-- Score distribution -->
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono mb-4">Distribusi Jawaban</div>
+      ${renderBar2('🟢 Sadar','bg-emerald-500',pctS,c.S)}
+      ${renderBar2('🔵 Netral','bg-navy-500',pctN,c.N)}
+      ${renderBar2('🔴 Berisiko','bg-red-500',pctR,c.R)}
+    </div>
+
+    <!-- Recommendations -->
+    <div class="mb-6">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono mb-3">Rekomendasi untuk Anda</div>
+      ${recsHtml}
+    </div>
+
+    <!-- Quick steps -->
+    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-5 mb-6">
+      <div class="text-xs font-semibold text-slate-500 uppercase tracking-wider font-mono mb-3">Langkah Darurat Sekarang</div>
+      <div class="grid grid-cols-2 gap-2.5">${stepCards}</div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex gap-3">
+      <button onclick="resetQuiz()" class="btn-secondary flex-1 py-3 rounded-xl text-sm font-semibold cursor-pointer flex items-center justify-center gap-1.5">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        Ulangi
+      </button>
+    </div>
+  </div>`;
+}
+
+function renderBar2(label, colorClass, pct, count){
+  return `<div class="flex items-center gap-3 mb-3">
+    <div class="text-xs text-slate-600 w-20 flex-shrink-0">${label}</div>
+    <div class="flex-1 h-2.5 bg-slate-200 rounded-full overflow-hidden">
+      <div class="${colorClass} score-fill rounded-full" style="--target-width:${pct}%"></div>
+    </div>
+    <div class="text-xs text-slate-400 font-mono w-20 text-right">${count} soal · ${pct}%</div>
+  </div>`;
+}
+
+function resetQuiz(){state.screen='intro';state.cur=0;state.answers=[];render();}
+
+init();
+</script>
+</body>
+</html>
