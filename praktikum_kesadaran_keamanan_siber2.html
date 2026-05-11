@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Praktikum Kesadaran Keamanan Siber</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/js/all.min.js" defer></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        colors: {
+          cyber: {
+            50: '#f0f7ff', 100: '#e0effe', 200: '#bae0fd', 300: '#7cc5fc',
+            400: '#36a7f8', 500: '#0b8ae5', 600: '#006cc3', 700: '#0057a0',
+            800: '#044a83', 900: '#093d6d',
+          }
+        }
+      }
+    }
+  }
+</script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+  * { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #1e293b; }
+
+  /* scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: #f1f5f9; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+
+  /* Nav scroll */
+  #moduleNav { scrollbar-width: none; }
+  #moduleNav::-webkit-scrollbar { display: none; }
+
+  /* Terminal */
+  .sim-terminal { background: #0f172a; border-radius: 10px; padding: 1rem 1.25rem; font-family: 'Courier New', monospace; font-size: 12.5px; color: #94f09a; min-height: 140px; overflow-y: auto; max-height: 180px; line-height: 1.7; }
+  .sim-line.warn { color: #fbbf24; }
+  .sim-line.err { color: #f87171; }
+  .sim-line.ok { color: #6ee7b7; }
+  .sim-line.cmd { color: #93c5fd; }
+
+  /* Transitions */
+  .option-card { transition: all 0.15s ease; }
+  .option-card:hover:not(.locked-opt) { transform: translateY(-1px); }
+
+  /* Progress bar animation */
+  .progress-fill { transition: width 0.5s cubic-bezier(.4,0,.2,1); }
+
+  /* Chip active */
+  .classify-chip { transition: all 0.15s; }
+
+  /* Drag */
+  .drag-item { cursor: grab; transition: opacity 0.15s, box-shadow 0.15s; }
+  .drag-item:active { cursor: grabbing; opacity: 0.6; }
+  .drag-item.dragging { opacity: 0.35; }
+
+  /* highlight */
+  .phish-highlight { background: #fef9c3; color: #854d0e; border-radius: 3px; padding: 0 3px; cursor: pointer; border-bottom: 1.5px dashed #ca8a04; transition: background 0.15s; }
+  .phish-highlight:hover { background: #fde68a; }
+
+  /* TL line */
+  .tl-connector { width: 2px; background: #e2e8f0; flex: 1; margin-top: 2px; min-height: 24px; }
+
+  /* Pulse animation */
+  @keyframes pulse-ring { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+  .badge-pulse { animation: pulse-ring 2s ease-in-out infinite; }
+</style>
+</head>
+<body class="min-h-screen bg-slate-50">
+
+<div class="max-w-3xl mx-auto px-4 py-6">
+
+  <!-- HEADER -->
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 mb-5 overflow-hidden">
+    <div class="bg-gradient-to-r from-blue-600 via-blue-700 to-indigo-700 px-6 pt-5 pb-6">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="bg-white/20 text-white text-xs font-semibold px-3 py-1 rounded-full border border-white/30">PPSDM Kemendikdasmen</span>
+        <span class="text-blue-200 text-xs">Pelatihan Keamanan Siber</span>
+        <span class="ml-auto badge-pulse w-2 h-2 bg-green-400 rounded-full"></span>
+        <span class="text-green-300 text-xs">Aktif</span>
+      </div>
+      <h1 class="text-white text-xl font-bold tracking-tight">🛡️ Praktikum Kesadaran Keamanan Siber</h1>
+      <p class="text-blue-200 text-sm mt-1.5">12 praktikum interaktif · 6 modul · Selesaikan setiap latihan untuk menguasai materi</p>
+    </div>
+
+    <!-- Module Navigation -->
+    <nav id="moduleNav" class="flex overflow-x-auto gap-2 px-5 py-3 bg-slate-50 border-t border-slate-200"></nav>
+  </div>
+
+  <!-- MAIN CONTENT -->
+  <div id="mainContent"></div>
+
+</div>
+
+<script>
+const modules = [
+  {
+    id: 0,
+    label: "1 · Insiden Siber",
+    icon: "ti-shield-exclamation",
+    color: "blue",
+    title: "Jenis Insiden Siber",
+    desc: "Kenali berbagai jenis insiden keamanan siber dan pelajari cara mengidentifikasinya di lingkungan nyata.",
+    praktikum: [
+      {
+        id: "p0a",
+        title: "Klasifikasi Insiden",
+        goal: "Kategorikan setiap skenario ke dalam jenis insiden yang tepat",
+        icon: "ti-tag",
+        iconBg: "bg-blue-100", iconColor: "text-blue-600",
+        type: "classify",
+        scenario: `Anda menerima laporan dari 5 staf yang berbeda. Setiap laporan menggambarkan kejadian mencurigakan yang dialami hari ini. Tentukan jenis insiden siber yang paling sesuai untuk setiap laporan.`,
+        items: [
+          { id: "i1", text: "Email dari 'Bank BRI' meminta verifikasi PIN lewat tautan", categories: ["Phishing", "Malware", "DDoS", "Data Breach"], answer: 0, feedback: "Benar! Ini adalah phishing — penjahat menyamar sebagai institusi terpercaya untuk mencuri kredensial.", wrongFeedback: "Salah. Meskipun ini adalah serangan siber, jenis yang paling tepat adalah Phishing karena melibatkan penipuan untuk mencuri informasi." },
+          { id: "i2", text: "Website disdik.go.id tidak bisa diakses sejak 2 jam lalu karena lonjakan trafik", categories: ["Phishing", "Malware", "DDoS", "Ransomware"], answer: 2, feedback: "Tepat! Serangan DDoS (Distributed Denial of Service) membanjiri server dengan trafik palsu hingga tidak bisa melayani pengguna.", wrongFeedback: "Salah. Meskipun ini adalah masalah keamanan siber, jenis yang paling tepat adalah DDoS karena melibatkan lonjakan trafik yang menyebabkan layanan tidak tersedia." },
+          { id: "i3", text: "File dokumen anggaran tiba-tiba terenkripsi dan muncul pesan tebusan", categories: ["Phishing", "Spyware", "DDoS", "Ransomware"], answer: 3, feedback: "Benar! Ransomware mengenkripsi data korban dan meminta tebusan untuk membuka kembali aksesnya.", wrongFeedback: "Salah. Meskipun ini adalah serangan siber, jenis yang paling tepat adalah Ransomware karena melibatkan enkripsi data dan permintaan tebusan." },
+          { id: "i4", text: "Data 50.000 siswa ditemukan dijual di forum gelap internet", categories: ["Phishing", "Malware", "Data Breach", "DDoS"], answer: 2, feedback: "Tepat! Data Breach — kebocoran data sensitif yang tidak sah, bisa disebabkan oleh berbagai cara.", wrongFeedback: "Salah. Meskipun ini adalah serangan siber, jenis yang paling tepat adalah Data Breach karena melibatkan kebocoran data sensitif." },
+        ],
+        current: 0, score: 0, done: false,
+      },
+      {
+        id: "p0b",
+        title: "Simulasi Deteksi Anomali",
+        goal: "Identifikasi aktivitas mencurigakan dari log sistem",
+        icon: "ti-terminal-2",
+        iconBg: "bg-amber-100", iconColor: "text-amber-600",
+        type: "logdetect",
+        scenario: `Anda adalah admin IT. Tinjau log aktivitas di bawah ini dan tandai baris mana yang mencurigakan, lalu pilih tindakan respons yang tepat.`,
+        logs: [
+          { text: "[08:12] user=budi login dari 192.168.1.10 — SUKSES", suspicious: false },
+          { text: "[08:14] user=budi akses dokumen anggaran.xlsx — SUKSES", suspicious: false },
+          { text: "[02:47] user=admin login dari 103.45.67.89 (Vietnam) — SUKSES", suspicious: true },
+          { text: "[09:01] user=siti login dari 192.168.1.22 — SUKSES", suspicious: false },
+          { text: "[02:48] user=admin download 2.3GB data dalam 3 menit — SUKSES", suspicious: true },
+          { text: "[09:15] user=andi reset password — SUKSES", suspicious: false },
+          { text: "[03:01] user=admin akses 847 file dalam 13 menit — SUKSES", suspicious: true },
+        ],
+        selected: [], done: false,
+        actions: ["Hubungi admin budi untuk verifikasi", "Segera nonaktifkan akun admin dan lapor ke tim IT Security", "Abaikan, kemungkinan lembur", "Hapus log tersebut"],
+        correctAction: 1,
+      }
+    ]
+  },
+  {
+    id: 1,
+    label: "2 · Respons & Pelaporan",
+    icon: "ti-clipboard-list",
+    color: "green",
+    title: "Prosedur Respons & Pelaporan Insiden",
+    desc: "Pelajari langkah-langkah respons insiden yang benar dan cara melaporkan kejadian keamanan siber secara efektif.",
+    praktikum: [
+      {
+        id: "p1a",
+        title: "Susun Prosedur Respons",
+        goal: "Urutkan langkah respons insiden dengan benar",
+        icon: "ti-list-check",
+        iconBg: "bg-green-100", iconColor: "text-green-600",
+        type: "order",
+        scenario: `Terjadi insiden: laptop staf ditemukan terinfeksi malware yang aktif mengirim data keluar. Urutkan langkah respons insiden yang benar dengan menyeret item ke kolom "Urutan Respons".`,
+        items: ["Identifikasi dan konfirmasi insiden","Isolasi perangkat dari jaringan","Catat semua detail insiden","Laporkan ke atasan dan tim IT Security","Analisis dampak dan forensik","Pemulihan sistem","Evaluasi pasca insiden"],
+        correct: [0,1,2,3,4,5,6],
+        done: false,
+      },
+      {
+        id: "p1b",
+        title: "Formulir Pelaporan Insiden",
+        goal: "Isi laporan insiden dengan benar berdasarkan skenario",
+        icon: "ti-file-description",
+        iconBg: "bg-red-100", iconColor: "text-red-500",
+        type: "form_report",
+        scenario: `Pada Selasa, 8 April 2025 pukul 14.30, Ibu Ratna (staf bagian keuangan) menemukan bahwa komputernya menampilkan pesan aneh dan tidak bisa membuka file Excel anggaran tahunan. Komputer terhubung ke jaringan kantor. Ibu Ratna segera mematikan komputer dan melapor ke Anda. Isi formulir pelaporan insiden berdasarkan informasi tersebut.`,
+        fields: [
+          { label: "Tanggal & Waktu Insiden", key: "datetime", placeholder: "cth: 8 April 2025, 14.30 WIB", hint: "Kapan kejadian pertama kali terdeteksi?", correct: ["8 april 2025","14.30","april 2025"] },
+          { label: "Pelapor", key: "reporter", placeholder: "Nama dan jabatan pelapor", hint: "Siapa yang melaporkan?", correct: ["ratna"] },
+          { label: "Jenis Insiden", key: "type", placeholder: "cth: Ransomware, Phishing, dll", hint: "Apa jenis insiden yang diduga?", correct: ["ransomware","malware","enkripsi"] },
+          { label: "Tindakan yang sudah dilakukan", key: "action", placeholder: "Tindakan pertama yang diambil", hint: "Apa yang sudah dilakukan?", correct: ["matikan","mematikan","isolasi","cabut"] },
+        ],
+        values: {}, done: false, checked: false,
+      }
+    ]
+  },
+  {
+    id: 2,
+    label: "3 · Oversharing",
+    icon: "ti-share",
+    color: "orange",
+    title: "Oversharing & Shared Responsibility",
+    desc: "Pahami risiko berbagi informasi berlebihan dan tanggung jawab bersama dalam menjaga keamanan data.",
+    praktikum: [
+      {
+        id: "p2a",
+        title: "Analisis Email Phishing",
+        goal: "Temukan semua tanda bahaya (red flag) dalam email mencurigakan",
+        icon: "ti-mail-exclamation",
+        iconBg: "bg-red-100", iconColor: "text-red-500",
+        type: "phishing",
+        done: false,
+      },
+      {
+        id: "p2b",
+        title: "Kuis Tanggung Jawab Bersama",
+        goal: "Jawab skenario tentang shared responsibility keamanan data",
+        icon: "ti-users",
+        iconBg: "bg-green-100", iconColor: "text-green-600",
+        type: "quiz",
+        questions: [
+          { q: "Rekan kerja Anda meminta password Wi-Fi kantor karena lupa, untuk keperluan meeting mendadak. Apa yang sebaiknya dilakukan?", options: ["Berikan saja, dia rekan kerja yang dipercaya","Hubungi admin IT untuk reset atau berikan akses tamu","Kirim password via WhatsApp agar cepat","Tolak dan tidak membantu sama sekali"], answer: 1, feedback: "Benar! Hubungi admin IT. Berbagi password secara langsung melanggar prinsip keamanan. Akses tamu tersedia untuk tujuan ini." },
+          { q: "Anda menerima dokumen kebijakan sensitif dari atasan via email pribadi untuk dikerjakan di rumah. Apa tindakan terbaik?", options: ["Langsung edit dari email pribadi","Simpan ke Google Drive pribadi agar mudah diakses","Laporkan ke IT dan gunakan sistem resmi kantor atau VPN","Cetak dokumen untuk dikerjakan offline"], answer: 2, feedback: "Tepat! Dokumen sensitif harus diakses melalui sistem resmi. Email pribadi dan cloud storage pribadi tidak aman untuk data dinas." },
+          { q: "Siapa yang bertanggung jawab atas keamanan data di instansi pemerintah?", options: ["Hanya tim IT Security","Hanya pimpinan dan manajemen","Setiap pegawai yang menggunakan sistem informasi","Hanya petugas yang menangani data sensitif"], answer: 2, feedback: "Benar! Keamanan siber adalah tanggung jawab SEMUA pegawai. Setiap orang adalah garis pertahanan pertama." },
+        ],
+        current: 0, score: 0, selectedOption: null, locked: false, done: false,
+      }
+    ]
+  },
+  {
+    id: 3,
+    label: "4 · OSINT & Pentest",
+    icon: "ti-search",
+    color: "purple",
+    title: "OSINT · Ego Surfing · Demo Pentest",
+    desc: "Simulasikan bagaimana informasi publik dapat dieksploitasi dan pelajari cara melindungi jejak digital Anda.",
+    praktikum: [
+      {
+        id: "p3a",
+        title: "Simulasi Ego Surfing",
+        goal: "Analisis jejak digital seseorang dari informasi publik",
+        icon: "ti-search",
+        iconBg: "bg-amber-100", iconColor: "text-amber-600",
+        type: "osint_sim",
+        done: false,
+      },
+      {
+        id: "p3b",
+        title: "Quiz OSINT Awareness",
+        goal: "Uji pemahaman tentang teknik OSINT dan cara perlindungannya",
+        icon: "ti-shield-search",
+        iconBg: "bg-blue-100", iconColor: "text-blue-600",
+        type: "quiz",
+        questions: [
+          { q: "Penyerang menemukan nama lengkap, jabatan, dan nomor HP Anda dari LinkedIn. Informasi ini bisa digunakan untuk?", options: ["Tidak berbahaya, ini informasi publik","Melancarkan serangan spear phishing yang sangat meyakinkan","Hanya untuk keperluan networking profesional","Tidak bisa disalahgunakan karena sudah tersedia publik"], answer: 1, feedback: "Tepat! Spear phishing menggunakan data personal spesifik untuk membuat pesan yang sangat meyakinkan. Informasi 'publik' tetap bisa berbahaya." },
+          { q: "Apa yang dimaksud dengan 'OSINT' dalam konteks keamanan siber?", options: ["Sistem keamanan jaringan pemerintah","Open Source Intelligence — pengumpulan informasi dari sumber terbuka","Software antivirus terbaru","Protokol enkripsi data rahasia"], answer: 1, feedback: "Benar! OSINT (Open Source Intelligence) adalah teknik mengumpulkan informasi dari sumber yang tersedia secara publik seperti media sosial, website, dan forum." },
+          { q: "Manakah informasi yang AMAN untuk dibagikan di media sosial publik?", options: ["Foto di kantor dengan dokumen terlihat di latar belakang","Lokasi real-time saat dinas luar kota","Foto umum hobi dan kegiatan personal tanpa info sensitif","Jadwal lengkap perjalanan dinas"], answer: 2, feedback: "Benar! Foto personal yang tidak mengandung informasi sensitif (dokumen, lokasi dinas, jadwal) relatif aman. Selalu periksa latar belakang foto sebelum posting." },
+        ],
+        current: 0, score: 0, selectedOption: null, locked: false, done: false,
+      }
+    ]
+  },
+  {
+    id: 4,
+    label: "5 · Rekam Jejak Digital",
+    icon: "ti-map-pin",
+    color: "rose",
+    title: "Rekam Jejak Digital & Dampaknya",
+    desc: "Pelajari bagaimana aktivitas digital meninggalkan jejak permanen dan dampaknya terhadap karier dan keamanan.",
+    praktikum: [
+      {
+        id: "p4a",
+        title: "Peta Jejak Digital",
+        goal: "Identifikasi aktivitas mana yang meninggalkan jejak digital",
+        icon: "ti-map-pin",
+        iconBg: "bg-amber-100", iconColor: "text-amber-600",
+        type: "quiz",
+        questions: [
+          { q: "Manakah aktivitas yang TIDAK meninggalkan jejak digital yang mudah dilacak?", options: ["Login ke aplikasi pemerintah dari HP kantor","Membaca dokumen fisik cetak di ruangan tertutup","Mengirim email dinas dari akun resmi","Mengakses website eksternal dari komputer kantor"], answer: 1, feedback: "Benar! Dokumen fisik cetak yang dibaca tanpa perangkat digital tidak meninggalkan jejak digital. Semua aktivitas digital dapat dilog dan dilacak." },
+          { q: "Anda menghapus postingan lama di media sosial. Apakah jejak digitalnya benar-benar hilang?", options: ["Ya, data langsung terhapus dari internet","Tidak, data mungkin tersimpan di server platform, cache, screenshot, atau wayback machine","Ya, jika dihapus dalam 24 jam pertama","Tergantung pada pengaturan privasi akun"], answer: 1, feedback: "Benar! Menghapus konten TIDAK menjamin hilangnya jejak. Data bisa tersimpan di cache, screenshot, arsip web, atau backup server platform." },
+          { q: "Seorang staf PNS menulis kritik pedas terhadap kebijakan kementerian di akun media sosial pribadinya. Apa risikonya?", options: ["Tidak ada risiko karena akun pribadi","Risiko pelanggaran kode etik PNS, jejak digital permanen, dan potensi sanksi","Risiko minimal selama tidak menggunakan nama instansi","Hanya risiko reputasi personal, tidak terkait pekerjaan"], answer: 1, feedback: "Benar! PNS terikat kode etik bahkan di media sosial pribadi. Jejak digital bersifat permanen dan dapat ditemukan oleh atasan, kolega, atau media." },
+        ],
+        current: 0, score: 0, selectedOption: null, locked: false, done: false,
+      },
+      {
+        id: "p4b",
+        title: "Simulasi Timeline Jejak Digital",
+        goal: "Telusuri dampak jangka panjang dari jejak digital yang tidak bijak",
+        icon: "ti-timeline",
+        iconBg: "bg-red-100", iconColor: "text-red-500",
+        type: "timeline_sim",
+        done: false,
+      }
+    ]
+  },
+  {
+    id: 5,
+    label: "6 · Budaya Keamanan",
+    icon: "ti-social",
+    color: "teal",
+    title: "Budaya Keamanan Siber Media Sosial",
+    desc: "Bangun kebiasaan aman bermedia sosial dan kembangkan budaya keamanan siber di lingkungan kerja.",
+    praktikum: [
+      {
+        id: "p5a",
+        title: "Audit Keamanan Media Sosial",
+        goal: "Periksa kebiasaan media sosial dan identifikasi risiko",
+        icon: "ti-social",
+        iconBg: "bg-blue-100", iconColor: "text-blue-600",
+        type: "quiz",
+        questions: [
+          { q: "Foto selfie Anda di kantor viral. Di latar belakang terlihat whiteboard dengan diagram infrastruktur jaringan. Apa tindakan terbaik?", options: ["Biarkan saja, tidak ada yang peduli diagram teknis","Segera hapus foto dan laporkan ke tim IT Security","Sembunyikan foto (archive) agar tidak mudah dilihat","Edit foto untuk mengaburkan whiteboard saja"], answer: 1, feedback: "Benar! Segera hapus dan laporkan. Diagram infrastruktur adalah informasi sensitif. Sekalipun sudah dihapus, tim keamanan perlu mengetahui potensi kebocoran informasi." },
+          { q: "Rekan Anda rutin memposting momen kantor di Instagram setiap hari termasuk nama proyek, nama klien, dan detail rapat. Apa yang sebaiknya dilakukan?", options: ["Tidak perlu campur urusan, itu hak pribadinya","Langsung laporkan ke atasan tanpa bicara ke rekan tersebut","Tegur dengan baik-baik dan jelaskan risiko keamanan informasi","Like saja, anggap sebagai promosi instansi"], answer: 2, feedback: "Tepat! Pendekatan pertama adalah komunikasi langsung yang baik. Jika tidak berhasil, baru eskalasi ke atasan. Budaya keamanan dibangun bersama." },
+          { q: "Manakah praktik terbaik keamanan akun media sosial untuk pegawai pemerintah?", options: ["Gunakan nama asli dan foto resmi agar mudah dikenal","Aktifkan autentikasi dua faktor, gunakan password unik, dan review pengaturan privasi secara berkala","Gunakan satu password yang kuat untuk semua akun","Hanya follow akun resmi pemerintah"], answer: 1, feedback: "Benar! Autentikasi dua faktor adalah lapisan keamanan penting. Password unik per akun mencegah domino effect jika satu akun dikompromikan." },
+        ],
+        current: 0, score: 0, selectedOption: null, locked: false, done: false,
+      },
+      {
+        id: "p5b",
+        title: "Rancang Kebijakan Media Sosial",
+        goal: "Susun poin-poin kebijakan penggunaan media sosial yang tepat",
+        icon: "ti-clipboard-list",
+        iconBg: "bg-green-100", iconColor: "text-green-600",
+        type: "policy_builder",
+        done: false,
+      }
+    ]
+  }
+];
+
+let activeModule = 0;
+let activePrak = 0;
+
+// -- Color helpers
+const colorMap = {
+  blue: { nav: 'bg-blue-600 text-white border-blue-600', navInactive: 'bg-white text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-700', tab: 'bg-blue-600 text-white', tabInactive: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50' },
+  green: { nav: 'bg-green-600 text-white border-green-600', navInactive: 'bg-white text-slate-600 border-slate-200 hover:bg-green-50 hover:text-green-700', tab: 'bg-green-600 text-white', tabInactive: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50' },
+  orange: { nav: 'bg-orange-500 text-white border-orange-500', navInactive: 'bg-white text-slate-600 border-slate-200 hover:bg-orange-50 hover:text-orange-700', tab: 'bg-orange-500 text-white', tabInactive: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50' },
+  purple: { nav: 'bg-purple-600 text-white border-purple-600', navInactive: 'bg-white text-slate-600 border-slate-200 hover:bg-purple-50 hover:text-purple-700', tab: 'bg-purple-600 text-white', tabInactive: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50' },
+  rose: { nav: 'bg-rose-500 text-white border-rose-500', navInactive: 'bg-white text-slate-600 border-slate-200 hover:bg-rose-50 hover:text-rose-700', tab: 'bg-rose-500 text-white', tabInactive: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50' },
+  teal: { nav: 'bg-teal-600 text-white border-teal-600', navInactive: 'bg-white text-slate-600 border-slate-200 hover:bg-teal-50 hover:text-teal-700', tab: 'bg-teal-600 text-white', tabInactive: 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50' },
+};
+
+function renderNav() {
+  const nav = document.getElementById('moduleNav');
+  nav.innerHTML = modules.map((m, i) => {
+    const c = colorMap[m.color];
+    const isActive = i === activeModule;
+    return `<button onclick="switchModule(${i})" class="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all duration-150 ${isActive ? c.nav : c.navInactive}">
+      <i class="ti ${m.icon} text-sm"></i>
+      ${m.label}
+    </button>`;
+  }).join('');
+}
+
+function switchModule(i) {
+  activeModule = i; activePrak = 0;
+  renderNav(); renderContent();
+}
+function switchPrak(i) {
+  activePrak = i; renderContent();
+}
+
+function renderContent() {
+  const mod = modules[activeModule];
+  const prak = mod.praktikum[activePrak];
+  const c = colorMap[mod.color];
+
+  // Count done
+  const doneCount = mod.praktikum.filter(p => p.done).length;
+  const totalCount = mod.praktikum.length;
+
+  let html = `
+  <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+    <!-- Module header -->
+    <div class="px-6 pt-5 pb-4 border-b border-slate-100">
+      <div class="flex items-start justify-between gap-3">
+        <div>
+          <h2 class="text-base font-bold text-slate-800">${mod.title}</h2>
+          <p class="text-sm text-slate-500 mt-0.5 leading-relaxed">${mod.desc}</p>
+        </div>
+        <div class="flex-shrink-0 text-right">
+          <div class="text-xs text-slate-400">Progress</div>
+          <div class="text-sm font-bold text-slate-700">${doneCount}/${totalCount}</div>
+        </div>
+      </div>
+      <!-- Progress bar -->
+      <div class="mt-3 h-1.5 bg-slate-100 rounded-full overflow-hidden">
+        <div class="progress-fill h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" style="width:${totalCount > 0 ? (doneCount/totalCount*100) : 0}%"></div>
+      </div>
+    </div>
+
+    <!-- Praktikum tabs -->
+    <div class="flex gap-2 px-5 py-3 bg-slate-50 border-b border-slate-100 overflow-x-auto">
+      ${mod.praktikum.map((p,i) => `
+        <button onclick="switchPrak(${i})" class="flex-shrink-0 flex items-center gap-1.5 text-xs font-semibold px-3.5 py-2 rounded-xl border transition-all duration-150 ${i===activePrak ? c.tab : c.tabInactive}">
+          ${p.done ? '<i class="ti ti-circle-check text-sm"></i>' : `<i class="ti ${p.icon} text-sm"></i>`}
+          ${p.title}
+          ${p.done ? '<span class="ml-1 text-[10px] opacity-75">✓</span>' : ''}
+        </button>`).join('')}
+    </div>
+
+    <!-- Praktikum content -->
+    <div class="p-5">
+      <!-- Prak header -->
+      <div class="flex items-start gap-3 mb-4">
+        <div class="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${prak.iconBg}">
+          <i class="ti ${prak.icon} text-xl ${prak.iconColor}"></i>
+        </div>
+        <div>
+          <h3 class="text-sm font-bold text-slate-800">${prak.title}</h3>
+          <p class="text-xs text-slate-500 mt-0.5">Tujuan: ${prak.goal}</p>
+        </div>
+        ${prak.done ? '<span class="ml-auto bg-green-100 text-green-700 text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0">✓ Selesai</span>' : ''}
+      </div>
+
+      <!-- Scenario box -->
+      <div class="bg-blue-50 border-l-4 border-blue-400 rounded-r-xl px-4 py-3 mb-5">
+        <div class="text-xs font-bold text-blue-600 mb-1 uppercase tracking-wide">📋 Skenario</div>
+        <p class="text-sm text-slate-700 leading-relaxed">${prak.scenario || getSenario(prak)}</p>
+      </div>
+
+      ${renderPraktikum(prak)}
+    </div>
+  </div>`;
+
+  document.getElementById('mainContent').innerHTML = html;
+  attachEvents(prak);
+}
+
+function getSenario(prak) {
+  const map = {
+    'p2a': 'Anda menerima email di kotak masuk kantor. Klik pada teks yang dihighlight untuk menandai red flag (tanda bahaya) dalam email ini.',
+    'p3a': 'Analis OSINT sedang menginvestigasi profil digital "Pak Hendra Kusuma", seorang pejabat fiktif. Informasi di bawah dikumpulkan dari sumber terbuka. Identifikasi risiko keamanan dari setiap data.',
+    'p4b': 'Ikuti perjalanan digital Pak Budi, seorang staf IT Kemendikbud, dan lihat bagaimana postingan yang tampak tidak berbahaya menciptakan konsekuensi nyata bertahun-tahun kemudian.',
+    'p5b': 'Susun kebijakan penggunaan media sosial untuk instansi Anda. Pilih poin-poin kebijakan yang tepat dan kategorikan dengan benar.',
+    'p1a': 'Terjadi insiden: laptop staf ditemukan terinfeksi malware yang aktif mengirim data keluar. Urutkan langkah respons insiden yang benar.',
+  };
+  return map[prak.id] || '';
+}
+
+function renderPraktikum(prak) {
+  if (prak.type === 'classify') return renderClassify(prak);
+  if (prak.type === 'logdetect') return renderLogDetect(prak);
+  if (prak.type === 'order') return renderOrder(prak);
+  if (prak.type === 'form_report') return renderFormReport(prak);
+  if (prak.type === 'quiz') return renderQuiz(prak);
+  if (prak.type === 'phishing') return renderPhishing(prak);
+  if (prak.type === 'osint_sim') return renderOsint(prak);
+  if (prak.type === 'timeline_sim') return renderTimeline(prak);
+  if (prak.type === 'policy_builder') return renderPolicyBuilder(prak);
+  return '';
+}
+
+// ========== CLASSIFY ==========
+function renderClassify(prak) {
+  const item = prak.items[prak.current];
+  const total = prak.items.length;
+  const pct = (prak.current / total) * 100;
+  if (prak.done && prak.current >= total) {
+    const pass = prak.score >= total * 0.75;
+    return resultBanner(pass,
+      pass ? 'Selamat! Anda berhasil mengklasifikasikan insiden dengan baik.' : 'Perlu belajar lebih lanjut tentang jenis-jenis insiden siber.',
+      `Skor: ${prak.score}/${total} · ${Math.round(prak.score/total*100)}% jawaban benar`
+    );
+  }
+  return `
+    ${progressBar(pct)}
+    <div class="text-xs text-slate-500 mb-3 font-medium">Laporan ${prak.current+1} dari ${total}</div>
+    <div class="bg-slate-50 rounded-xl px-4 py-3 text-sm font-medium text-slate-800 mb-4 border border-slate-200">"${item.text}"</div>
+    <div class="flex flex-col gap-2" id="classifyOpts">
+      ${item.categories.map((c,i) => `
+        <div onclick="classifyAnswer(${i})" data-idx="${i}" class="option-card flex items-center gap-3 px-4 py-3 rounded-xl border border-slate-200 cursor-pointer bg-white hover:bg-slate-50 hover:border-slate-300 text-sm text-slate-700">
+          <span class="w-7 h-7 rounded-lg bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500 flex-shrink-0">${String.fromCharCode(65+i)}</span>
+          ${c}
+        </div>`).join('')}
+    </div>
+    <div class="hidden mt-3 rounded-xl px-4 py-3 text-sm" id="classifyFb"></div>`;
+}
+
+// ========== LOG DETECT ==========
+function renderLogDetect(prak) {
+  return `
+    <div class="text-xs font-semibold text-slate-500 mb-2 uppercase tracking-wide">🖥️ Klik baris log yang mencurigakan:</div>
+    <div class="sim-terminal mb-4" id="logTerminal">
+      ${prak.logs.map((l,i) => `<div class="sim-line ${prak.selected.includes(i)?'warn':''} cursor-pointer rounded px-1 mb-0.5 hover:opacity-80" onclick="toggleLog(${i})" data-logidx="${i}">${l.text}${prak.selected.includes(i)?'  ⚑ DICURIGAI':''}</div>`).join('')}
+    </div>
+    <div class="mb-4">
+      <div class="text-xs font-semibold text-slate-600 mb-2">Tindakan yang harus segera diambil:</div>
+      <div class="flex flex-col gap-2" id="logActionOpts">
+        ${prak.actions.map((a,i) => `
+          <div onclick="selectLogAction(${i})" data-actidx="${i}" class="option-card flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer text-sm transition-all ${prak._logAction===i ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'}">
+            <span class="w-7 h-7 rounded-lg ${prak._logAction===i?'bg-blue-100':'bg-slate-100'} flex items-center justify-center text-xs font-bold ${prak._logAction===i?'text-blue-600':'text-slate-500'} flex-shrink-0">${String.fromCharCode(65+i)}</span>
+            ${a}
+          </div>`).join('')}
+      </div>
+    </div>
+    <div class="hidden rounded-xl px-4 py-3 text-sm" id="logFb"></div>
+    <div class="flex items-center justify-between gap-3 mt-4">
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+        <i class="ti ti-flag text-sm"></i> Dipilih: <span id="logSelCount" class="text-slate-800">${prak.selected.length}</span> baris
+      </span>
+      <button onclick="checkLog()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Periksa Jawaban</button>
+    </div>
+    ${prak.done ? resultBanner(true,'Analisis Log Selesai!','Anda telah mengidentifikasi pola serangan: login dini hari dari luar negeri, unduhan data masif, dan akses file anomali. Segera nonaktifkan akun dan lakukan forensik digital.') : ''}`;
+}
+
+// ========== ORDER / DRAG ==========
+function renderOrder(prak) {
+  if (!prak._shuffled) {
+    prak._shuffled = true;
+    prak._shuffleOrder = prak.items.map((_,i)=>i).sort(()=>Math.random()-0.5);
+    prak._displayItems = prak._shuffleOrder.map(i=>prak.items[i]);
+    prak._placedItems = [];
+  }
+  return `
+    <div class="grid grid-cols-2 gap-4 mb-4">
+      <div>
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide mb-2"><i class="ti ti-cards text-sm"></i> Bank Langkah</div>
+        <div class="min-h-20 border-2 border-dashed border-slate-200 rounded-xl p-2 flex flex-col gap-1.5" id="bankCol">
+          ${prak._displayItems.filter((_,i) => !prak._placedItems.includes(i)).map((item) => {
+            const idx = prak._displayItems.indexOf(item);
+            return `<div class="drag-item bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 hover:shadow-sm" draggable="true" data-item="${idx}" ondragstart="dragStart(event)" onclick="moveToPlaced(${idx})">${item}</div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div>
+        <div class="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wide mb-2"><i class="ti ti-list-numbers text-sm"></i> Urutan Respons</div>
+        <div class="min-h-20 border-2 border-dashed border-blue-200 bg-blue-50/50 rounded-xl p-2 flex flex-col gap-1.5" id="placedCol" ondragover="event.preventDefault()" ondrop="dropToPlaced(event)">
+          ${prak._placedItems.map((i,pos) => `<div class="drag-item bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-xs font-medium text-blue-800 flex items-center gap-2"><span class="text-blue-400 font-bold w-4">${pos+1}.</span>${prak._displayItems[i]}</div>`).join('')}
+        </div>
+      </div>
+    </div>
+    <div class="flex items-center justify-between gap-3">
+      <button onclick="resetOrder()" class="text-sm font-semibold px-4 py-2 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-all">↺ Reset</button>
+      <button onclick="checkOrder()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Periksa Urutan</button>
+    </div>
+    ${prak.done ? resultBanner(true,'Urutan respons insiden sudah tepat!','Identifikasi → Isolasi → Catat → Lapor → Analisis → Pulihkan → Evaluasi. Ingat: JANGAN matikan perangkat sebelum isolasi jaringan karena bisa menghapus bukti forensik.') : ''}`;
+}
+
+// ========== FORM REPORT ==========
+function renderFormReport(prak) {
+  return `
+    <div class="flex flex-col gap-3 mb-5" id="formFields">
+      ${prak.fields.map(f => `
+        <div class="border border-slate-200 rounded-xl p-3.5">
+          <label class="block text-xs font-bold text-slate-700 mb-1">${f.label}</label>
+          <div class="flex items-center gap-1 text-xs text-slate-400 mb-2"><i class="ti ti-info-circle text-sm"></i> ${f.hint}</div>
+          <input type="text" placeholder="${f.placeholder}" id="field_${f.key}" value="${prak.values[f.key]||''}" oninput="updateField('${f.key}', this.value)"
+            class="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400 placeholder:text-slate-300 transition-all">
+          <div class="hidden mt-2 rounded-lg px-3 py-2 text-xs" id="fb_${f.key}" style="display:${prak.checked?'block':'none'};"></div>
+        </div>`).join('')}
+    </div>
+    <div class="flex items-center justify-between gap-3">
+      <p class="text-xs text-slate-400">Isi semua kolom berdasarkan skenario di atas</p>
+      <button onclick="checkForm()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Kirim Laporan</button>
+    </div>
+    ${prak.done ? resultBanner(true,'Laporan insiden berhasil disusun!','Laporan yang lengkap dan akurat sangat penting untuk respons insiden yang efektif.') : ''}`;
+}
+
+// ========== QUIZ ==========
+function renderQuiz(prak) {
+  if (prak.current >= prak.questions.length) {
+    const pass = prak.score >= prak.questions.length * 0.67;
+    return resultBanner(pass,
+      pass ? '🎉 Selamat! Pemahaman Anda sangat baik.' : 'Perlu peningkatan pemahaman.',
+      `Skor akhir: ${prak.score}/${prak.questions.length} · ${Math.round(prak.score/prak.questions.length*100)}%`,
+      true
+    );
+  }
+  const q = prak.questions[prak.current];
+  const pct = (prak.current / prak.questions.length) * 100;
+  return `
+    ${progressBar(pct)}
+    <div class="text-xs text-slate-400 mb-3 font-medium">Pertanyaan ${prak.current+1} dari ${prak.questions.length}</div>
+    <div class="text-sm font-semibold text-slate-800 mb-4 leading-relaxed">${q.q}</div>
+    <div class="flex flex-col gap-2 mb-4" id="quizOpts">
+      ${q.options.map((o,i) => {
+        let cls = 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
+        if (prak.locked) {
+          if (i === q.answer) cls = 'border-green-400 bg-green-50 text-green-700';
+          else if (i === prak.selectedOption) cls = 'border-red-400 bg-red-50 text-red-700';
+          else cls = 'border-slate-100 bg-slate-50 text-slate-400 opacity-60';
+        } else if (prak.selectedOption === i) {
+          cls = 'border-blue-400 bg-blue-50 text-blue-700';
+        }
+        return `<div onclick="selectQuizOption(${i})" data-qi="${i}" class="option-card ${prak.locked?'locked-opt':''} flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer text-sm transition-all ${cls}">
+          <span class="w-7 h-7 rounded-lg flex items-center justify-center text-xs font-bold flex-shrink-0 ${prak.locked && i===q.answer ? 'bg-green-100 text-green-600' : prak.locked && i===prak.selectedOption && i!==q.answer ? 'bg-red-100 text-red-600' : prak.selectedOption===i?'bg-blue-100 text-blue-600':'bg-slate-100 text-slate-500'}">${String.fromCharCode(65+i)}</span>
+          ${o}
+        </div>`;
+      }).join('')}
+    </div>
+    ${prak.locked ? `<div class="rounded-xl px-4 py-3 text-sm mb-4 ${prak.selectedOption===q.answer?'bg-green-50 border border-green-200 text-green-800':'bg-red-50 border border-red-200 text-red-800'}">${prak.selectedOption===q.answer?'✓':'✗'} ${q.feedback}</div>` : ''}
+    <div class="flex items-center justify-between gap-3">
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+        <i class="ti ti-star text-sm"></i> Skor: <span class="text-slate-800">${prak.score}</span>
+      </span>
+      ${!prak.locked
+        ? `<button onclick="submitQuiz()" ${prak.selectedOption===null?'disabled':''} class="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Konfirmasi Jawaban</button>`
+        : `<button onclick="nextQuestion()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Berikutnya →</button>`}
+    </div>`;
+}
+
+// ========== PHISHING ==========
+function renderPhishing(prak) {
+  if (!prak._flags) prak._flags = [false,false,false,false,false];
+  const flags = [
+    { text: "Dari: layanan@bri-aman-update.com", found: prak._flags[0] },
+    { text: "Tautan: http://bri-login-update.xyz", found: prak._flags[1] },
+    { text: "Urgensi palsu: 24 jam", found: prak._flags[2] },
+    { text: "Permintaan PIN/password via email", found: prak._flags[3] },
+    { text: "Salam generik: 'Yth. Nasabah'", found: prak._flags[4] },
+  ];
+  const foundCount = prak._flags.filter(Boolean).length;
+  return `
+    <div class="border border-slate-200 rounded-xl overflow-hidden mb-4">
+      <div class="bg-slate-50 px-4 py-3 border-b border-slate-200">
+        <div class="text-xs text-slate-500 mb-0.5">Dari: <span class="phish-highlight font-semibold text-slate-700" onclick="markFlag(0)" title="Klik untuk tandai">layanan@bri-aman-update.com</span></div>
+        <div class="text-xs text-slate-500 mb-0.5">Kepada: <span class="font-medium text-slate-700">anda@kemendikbud.go.id</span></div>
+        <div class="text-xs text-slate-500">Subjek: <span class="font-semibold text-slate-700">⚠️ SEGERA: Verifikasi Akun BRI Anda dalam 24 Jam</span></div>
+      </div>
+      <div class="px-4 py-4 text-sm text-slate-700 leading-relaxed bg-white">
+        Yth. <span class="phish-highlight" onclick="markFlag(4)">Nasabah</span> BRI yang terhormat,<br><br>
+        Kami mendeteksi aktivitas mencurigakan pada akun Anda. Untuk keamanan Anda, silakan verifikasi akun dalam <span class="phish-highlight" onclick="markFlag(2)">24 jam ke depan</span> atau akun akan diblokir.<br><br>
+        Klik tautan berikut dan masukkan data lengkap termasuk <span class="phish-highlight" onclick="markFlag(3)">nomor PIN</span> Anda:<br>
+        <span class="phish-highlight text-blue-600" onclick="markFlag(1)">http://bri-login-update.xyz/verifikasi</span><br><br>
+        Hormat kami,<br>Tim Keamanan BRI
+      </div>
+    </div>
+    <div class="text-xs text-slate-400 mb-3 flex items-center gap-1"><i class="ti ti-hand-click text-sm"></i> Klik teks yang dihighlight untuk menandai red flag</div>
+    <div class="grid grid-cols-1 gap-1.5 mb-4">
+      ${flags.map((f,i) => `
+        <div class="flex items-center gap-2 text-xs px-3 py-2 rounded-lg ${f.found?'bg-red-50 text-red-700':'bg-slate-50 text-slate-500'}">
+          <i class="ti ${f.found?'ti-circle-check text-red-500':'ti-circle text-slate-300'} text-base"></i>
+          ${f.text}
+        </div>`).join('')}
+    </div>
+    <div class="flex items-center justify-between gap-3">
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+        <i class="ti ti-flag text-sm"></i> Ditemukan: <span class="text-slate-800">${foundCount}</span>/5
+      </span>
+      ${foundCount >= 5 ? `<div class="bg-green-50 border border-green-200 text-green-800 text-xs font-semibold px-4 py-2 rounded-xl">✓ Semua red flag ditemukan! Email ini adalah phishing klasik.</div>` : ''}
+    </div>`;
+}
+
+// ========== OSINT ==========
+function renderOsint(prak) {
+  const risks = [
+    { label: "Nama Lengkap + Jabatan", value: "Hendra Kusuma — Kabag Sistem Informasi", risk: "Spear phishing, social engineering yang ditarget" },
+    { label: "Lokasi Kantor", value: "Gedung A, Kemendikbud, Jakarta Selatan", risk: "Serangan fisik, tailgating, pretexting" },
+    { label: "Rutinitas", value: "Gym setiap Selasa-Kamis 06.00-07.30", risk: "Prediksi kapan target tidak berada di kantor" },
+    { label: "Platform & Username", value: "LinkedIn: hendra.kusuma.id | Twitter: @hendra_IT", risk: "Impersonasi, analisis koneksi profesional" },
+    { label: "Email Ditemukan", value: "h.kusuma@kemendikbud.go.id", risk: "Phishing langsung, credential stuffing" },
+    { label: "Foto Kantor", value: "Post LinkedIn: foto di depan server room", risk: "Bocorkan infrastruktur fisik dan keamanan" },
+  ];
+  if (!prak._revealed) prak._revealed = new Array(6).fill(false);
+  const revealedCount = prak._revealed.filter(Boolean).length;
+  return `
+    <div class="text-xs font-semibold text-slate-500 mb-3 uppercase tracking-wide">Profil OSINT dari sumber terbuka (30 menit):</div>
+    <div class="grid grid-cols-2 gap-3 mb-4">
+      ${risks.map((r,i) => `
+        <div onclick="toggleOsintRisk(${i})" id="osint_${i}" class="border rounded-xl p-3 cursor-pointer transition-all ${prak._revealed[i]?'border-amber-300 bg-amber-50':'border-slate-200 bg-white hover:border-slate-300'}">
+          <div class="flex items-center gap-1.5 text-xs font-bold text-slate-500 mb-2"><i class="ti ti-world text-sm"></i> ${r.label}</div>
+          <div class="text-xs text-slate-700 font-medium mb-2">${r.value}</div>
+          ${prak._revealed[i]
+            ? `<div class="bg-red-100 rounded-lg px-2.5 py-2 text-xs text-red-700"><i class="ti ti-alert-triangle"></i> <strong>Risiko:</strong> ${r.risk}</div>`
+            : `<div class="text-[11px] text-slate-400 italic">Klik untuk lihat risiko →</div>`}
+        </div>`).join('')}
+    </div>
+    <div class="flex items-center justify-between gap-3">
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+        <i class="ti ti-eye text-sm"></i> Dianalisis: <span class="text-slate-800">${revealedCount}</span>/6
+      </span>
+    </div>`;
+}
+
+// ========== TIMELINE ==========
+function renderTimeline(prak) {
+  const events = [
+    { year: "2022", title: "Posting Foto Rapat Sensasional", desc: "Pak Budi memposting foto suasana rapat dengan dokumen anggaran terlihat jelas di meja. Dibagikan 47 kali.", icon: "ti-camera", danger: false },
+    { year: "2023", title: "Komentar Kontroversi Terhapus", desc: "Budi menghapus komentar kritik terhadap kebijakan. Tapi sudah di-screenshot dan tersebar di grup WhatsApp internal.", icon: "ti-message-x", danger: true },
+    { year: "2023", title: "Data Ditemukan di Breach", desc: "Email kantor Budi muncul di database breach. Kemungkinan akibat penggunaan email dinas untuk akun non-resmi.", icon: "ti-database-x", danger: true },
+    { year: "2024", title: "Dipanggil Atasan", desc: "Screenshot komentar 2023 beredar saat Budi mengajukan promosi. Proses promosi tertunda untuk investigasi.", icon: "ti-user-exclamation", danger: false },
+    { year: "2025", title: "Audit Keamanan Diperluas", desc: "Tim keamanan menemukan pola: foto 2022 berisi metadata lokasi server room. Digunakan pihak tak dikenal untuk pemetaan infrastruktur.", icon: "ti-shield-x", danger: true },
+  ];
+  if (!prak._step) prak._step = 0;
+  return `
+    <div class="flex flex-col mb-4">
+      ${events.map((e,i) => `
+        <div class="flex gap-3">
+          <div class="flex flex-col items-center">
+            <div onclick="advanceTimeline(${i})" class="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 cursor-pointer text-xs font-bold border-2 transition-all ${
+              i < prak._step ? (e.danger?'bg-red-100 border-red-300 text-red-600':'bg-amber-100 border-amber-300 text-amber-700') :
+              i === prak._step ? 'bg-blue-100 border-blue-400 text-blue-700 shadow-sm' :
+              'bg-white border-slate-200 text-slate-400'
+            }">
+              ${i < prak._step ? '<i class="ti ti-check text-sm"></i>' : `<span>${e.year.slice(2)}</span>`}
+            </div>
+            ${i < events.length-1 ? '<div class="tl-connector"></div>' : ''}
+          </div>
+          <div class="flex-1 pb-4 pt-1" style="opacity:${i<=prak._step?1:0.35}; transition:opacity 0.3s;">
+            <div class="text-xs font-bold ${i<=prak._step?(e.danger?'text-red-600':'text-amber-700'):'text-slate-400'} flex items-center gap-1.5 mb-0.5">
+              <i class="ti ${e.icon} text-sm"></i> ${e.year}: ${e.title}
+            </div>
+            ${i <= prak._step
+              ? `<p class="text-xs text-slate-600 leading-relaxed">${e.desc}</p>`
+              : `<p class="text-xs text-slate-400 italic">Klik lingkaran untuk ungkap kejadian...</p>`}
+          </div>
+        </div>`).join('')}
+    </div>
+    <div class="flex items-center justify-between gap-3">
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+        <i class="ti ti-timeline text-sm"></i> Tahap: <span class="text-slate-800">${prak._step}</span>/${events.length}
+      </span>
+      ${prak._step >= events.length
+        ? `<button class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">✓ Simulasi Selesai</button>`
+        : `<button onclick="advanceTimeline(${prak._step})" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Lanjut →</button>`}
+    </div>`;
+}
+
+// ========== POLICY BUILDER ==========
+function renderPolicyBuilder(prak) {
+  const allPolicies = [
+    { text: "Jangan posting foto yang menampilkan dokumen, layar komputer, atau informasi sensitif", correct: true },
+    { text: "Gunakan akun media sosial pribadi untuk keperluan dinas jika lebih mudah", correct: false },
+    { text: "Aktifkan autentikasi dua faktor di semua akun media sosial", correct: true },
+    { text: "Boleh share informasi proyek jika tidak menyebutkan nama kementerian", correct: false },
+    { text: "Laporkan akun impersonasi atau konten hoaks terkait instansi ke IT Security", correct: true },
+    { text: "Review pengaturan privasi akun media sosial secara berkala (3-6 bulan sekali)", correct: true },
+    { text: "Password media sosial boleh sama dengan password akun dinas untuk kemudahan", correct: false },
+    { text: "Jangan menerima permintaan pertemanan dari akun yang tidak dikenal", correct: true },
+    { text: "Kritik kebijakan instansi diperbolehkan asalkan di akun anonim", correct: false },
+    { text: "Ikuti pelatihan keamanan siber yang diselenggarakan instansi", correct: true },
+  ];
+  if (!prak._selected) prak._selected = [];
+  const selCount = prak._selected.length;
+  return `
+    <div class="text-sm text-slate-700 mb-4">Pilih semua pernyataan yang <strong class="text-slate-900">TEPAT</strong> untuk dijadikan poin kebijakan media sosial instansi:</div>
+    <div class="flex flex-wrap gap-2 mb-5" id="policyItems">
+      ${allPolicies.map((p,i) => {
+        let cls = 'border-slate-200 bg-white text-slate-700 hover:border-slate-300';
+        if (prak._checked) {
+          if (p.correct) cls = 'border-green-400 bg-green-50 text-green-800';
+          else if (prak._selected.includes(i)) cls = 'border-red-400 bg-red-50 text-red-700';
+          else cls = 'border-slate-100 bg-slate-50 text-slate-400 opacity-50';
+        } else if (prak._selected.includes(i)) {
+          cls = 'border-blue-400 bg-blue-50 text-blue-700';
+        }
+        return `<div onclick="togglePolicy(${i})" class="classify-chip flex items-center gap-1.5 text-xs font-medium px-3.5 py-2 rounded-xl border cursor-pointer ${cls}">
+          ${prak._checked ? `<i class="ti ${p.correct?'ti-check':'ti-x'} text-sm"></i>` : ''}
+          ${p.text}
+        </div>`;
+      }).join('')}
+    </div>
+    <div class="flex items-center justify-between gap-3">
+      <span class="inline-flex items-center gap-1.5 bg-slate-100 text-slate-600 text-xs font-semibold px-3 py-1.5 rounded-full">
+        <i class="ti ti-checklist text-sm"></i> Dipilih: <span class="text-slate-800">${selCount}</span> poin
+      </span>
+      ${!prak._checked ? `<button onclick="checkPolicy()" class="bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-5 py-2 rounded-xl transition-all">Periksa Kebijakan</button>` : ''}
+    </div>
+    ${prak._checked ? (() => {
+      const correctCount = prak._selected.filter(i=>allPolicies[i].correct).length;
+      const pass = correctCount >= 5;
+      return resultBanner(pass,
+        pass ? 'Kebijakan media sosial berhasil disusun!' : 'Masih ada poin yang perlu diperbaiki.',
+        `Benar: ${correctCount} dari 6 poin tepat. Hijau = tepat, merah = salah dipilih.`
+      );
+    })() : ''}`;
+}
+
+// ========== HELPERS ==========
+function progressBar(pct) {
+  return `<div class="h-1.5 bg-slate-100 rounded-full mb-4 overflow-hidden">
+    <div class="progress-fill h-full bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full" style="width:${pct}%"></div>
+  </div>`;
+}
+
+function resultBanner(pass, title, body, showReset=false) {
+  return `<div class="mt-4 rounded-xl px-4 py-4 border ${pass?'bg-green-50 border-green-200 text-green-800':'bg-amber-50 border-amber-200 text-amber-800'}">
+    <div class="font-bold text-sm mb-1">${pass?'✅':'⚠️'} ${title}</div>
+    <div class="text-xs leading-relaxed">${body}</div>
+    ${showReset ? `<button onclick="resetQuiz()" class="mt-3 text-xs font-semibold px-3 py-1.5 rounded-lg border ${pass?'border-green-300 hover:bg-green-100':'border-amber-300 hover:bg-amber-100'} transition-all">↺ Ulangi Quiz</button>` : ''}
+  </div>`;
+}
+
+// ========== EVENTS ==========
+function attachEvents() {}
+
+function classifyAnswer(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (prak._answering) return;
+  const item = prak.items[prak.current];
+  prak._answering = true;
+  const opts = document.querySelectorAll('#classifyOpts > div');
+  opts.forEach((o,i) => {
+    if (i === item.answer) { o.classList.remove('border-slate-200','bg-white'); o.classList.add('border-green-400','bg-green-50','text-green-700'); }
+    else if (i === idx && idx !== item.answer) { o.classList.remove('border-slate-200','bg-white'); o.classList.add('border-red-400','bg-red-50','text-red-700'); }
+  });
+  const fb = document.getElementById('classifyFb');
+  const correct = idx === item.answer;
+  // if (correct) prak.score++;
+  // fb.textContent = item.feedback;
+  if (correct) {
+    prak.score++;
+    fb.textContent = item.feedback;
+  } else {
+    fb.textContent = item.wrongFeedback;
+  }
+
+  fb.className = `mt-3 rounded-xl px-4 py-3 text-sm ${correct?'bg-green-50 border border-green-200 text-green-800':'bg-red-50 border border-red-200 text-red-800'}`;
+  setTimeout(() => {
+    prak.current++;
+    prak._answering = false;
+    if (prak.current >= prak.items.length) prak.done = true;
+    renderContent();
+  }, 5000);
+}
+
+function toggleLog(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (prak.done) return;
+  const i = prak.selected.indexOf(idx);
+  if (i > -1) prak.selected.splice(i,1);
+  else prak.selected.push(idx);
+  renderContent();
+}
+
+function selectLogAction(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak._logAction = idx;
+  renderContent();
+}
+
+function checkLog() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  const fb = document.getElementById('logFb');
+  const suspiciousIdx = prak.logs.map((l,i)=>l.suspicious?i:-1).filter(i=>i>-1);
+  const correctSelected = suspiciousIdx.every(i=>prak.selected.includes(i));
+  const correctAction = prak._logAction === prak.correctAction;
+  if (correctSelected && correctAction) {
+    fb.textContent = 'Benar! Anda mengidentifikasi semua aktivitas mencurigakan dan memilih tindakan yang tepat.';
+    fb.className = 'mt-3 rounded-xl px-4 py-3 text-sm bg-green-50 border border-green-200 text-green-800';
+    prak.done = true;
+    renderContent();
+  } else {
+    fb.textContent = `${!correctSelected?'Beberapa log mencurigakan terlewat. ':''}${!correctAction?'Tindakan yang dipilih kurang tepat.':''}`;
+    fb.className = 'mt-3 rounded-xl px-4 py-3 text-sm bg-red-50 border border-red-200 text-red-800';
+  }
+}
+
+function moveToPlaced(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (!prak._placedItems.includes(idx)) { prak._placedItems.push(idx); renderContent(); }
+}
+
+function resetOrder() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak._placedItems = [];
+  renderContent();
+}
+
+function checkOrder() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  const placed = prak._placedItems.map(i => prak._displayItems[i]);
+  const isCorrect = placed.length === prak.items.length && placed.every((item,i) => item === prak.items[i]);
+  if (isCorrect) { prak.done = true; renderContent(); }
+  else {
+    const existing = document.querySelector('.order-feedback');
+    if (!existing) {
+      const fb = document.createElement('div');
+      fb.className = 'order-feedback mt-3 rounded-xl px-4 py-3 text-sm bg-red-50 border border-red-200 text-red-800';
+      fb.textContent = 'Urutan belum tepat. Pastikan semua langkah sudah di kolom kanan dan urutannya logis.';
+      document.querySelector('.flex.items-center.justify-between').insertAdjacentElement('beforebegin', fb);
+    }
+  }
+}
+
+let dragSrcIdx = null;
+function dragStart(e) { dragSrcIdx = parseInt(e.target.dataset.item); }
+function dropToPlaced(e) {
+  e.preventDefault();
+  if (dragSrcIdx !== null) { moveToPlaced(dragSrcIdx); dragSrcIdx = null; }
+}
+
+function updateField(key, val) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak.values[key] = val;
+}
+
+function checkForm() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak.checked = true;
+  let allCorrect = true;
+  prak.fields.forEach(f => {
+    const val = (prak.values[f.key] || '').toLowerCase();
+    const correct = f.correct.some(c => val.includes(c));
+    const fb = document.getElementById(`fb_${f.key}`);
+    if (fb) {
+      fb.style.display = 'block';
+      fb.className = `mt-2 rounded-lg px-3 py-2 text-xs font-medium ${correct?'bg-green-50 border border-green-200 text-green-700':'bg-red-50 border border-red-200 text-red-700'}`;
+      fb.textContent = correct ? '✓ Tepat!' : `✗ Perlu diperbaiki. Petunjuk: ${f.hint}`;
+    }
+    if (!correct) allCorrect = false;
+  });
+  if (allCorrect) { prak.done = true; renderContent(); }
+}
+
+function selectQuizOption(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (prak.locked) return;
+  prak.selectedOption = idx;
+  renderContent();
+}
+
+function submitQuiz() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (prak.selectedOption === null) return;
+  prak.locked = true;
+  const q = prak.questions[prak.current];
+  if (prak.selectedOption === q.answer) prak.score++;
+  renderContent();
+}
+
+function nextQuestion() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak.current++;
+  prak.selectedOption = null;
+  prak.locked = false;
+  if (prak.current >= prak.questions.length) prak.done = true;
+  renderContent();
+}
+
+function resetQuiz() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak.current = 0; prak.score = 0; prak.selectedOption = null; prak.locked = false; prak.done = false;
+  renderContent();
+}
+
+function markFlag(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak._flags[idx] = true;
+  if (prak._flags.filter(Boolean).length >= 5) prak.done = true;
+  renderContent();
+}
+
+function toggleOsintRisk(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (!prak._revealed) prak._revealed = new Array(6).fill(false);
+  prak._revealed[idx] = true;
+  if (prak._revealed.filter(Boolean).length >= 6) prak.done = true;
+  renderContent();
+}
+
+function advanceTimeline(step) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (prak._step <= step) prak._step = step + 1;
+  if (prak._step >= 5) prak.done = true;
+  renderContent();
+}
+
+function togglePolicy(idx) {
+  const prak = modules[activeModule].praktikum[activePrak];
+  if (prak._checked) return;
+  if (!prak._selected) prak._selected = [];
+  const i = prak._selected.indexOf(idx);
+  if (i > -1) prak._selected.splice(i,1);
+  else prak._selected.push(idx);
+  renderContent();
+}
+
+function checkPolicy() {
+  const prak = modules[activeModule].praktikum[activePrak];
+  prak._checked = true; prak.done = true;
+  renderContent();
+}
+
+renderNav();
+renderContent();
+</script>
+</body>
+</html>
