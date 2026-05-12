@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulasi Ancaman WiFi Publik</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --safe: #10b981;
+    --accent: #6366f1;
+  }
+  body { font-family: 'Space Grotesk', sans-serif; background: #0a0a0f; color: #e2e8f0; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .glow-red { box-shadow: 0 0 20px rgba(239,68,68,0.3); }
+  .glow-green { box-shadow: 0 0 20px rgba(16,185,129,0.3); }
+  .glow-indigo { box-shadow: 0 0 20px rgba(99,102,241,0.3); }
+  .glow-amber { box-shadow: 0 0 20px rgba(245,158,11,0.3); }
+  .terminal { background: #0d1117; border: 1px solid #30363d; }
+  .packet { position: absolute; width: 8px; height: 8px; border-radius: 50%; animation: movePacket 2s linear infinite; }
+  @keyframes movePacket {
+    0% { transform: translateX(0); opacity: 1; }
+    100% { transform: translateX(300px); opacity: 0; }
+  }
+  @keyframes pulse-red {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.4); }
+    50% { box-shadow: 0 0 0 15px rgba(239,68,68,0); }
+  }
+  @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+  .blink { animation: blink 1s step-end infinite; }
+  .pulse-danger { animation: pulse-red 2s infinite; }
+  @keyframes slide-in {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+  }
+  .slide-in { animation: slide-in 0.4s ease-out forwards; }
+  @keyframes fadeUp {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  .fade-up { animation: fadeUp 0.5s ease-out forwards; }
+  .tab-active { background: #1e1e2e; border-bottom: 2px solid #6366f1; color: #a5b4fc; }
+  .tab-inactive { color: #64748b; }
+  .tab-inactive:hover { color: #94a3b8; background: #111827; }
+  .progress-bar { transition: width 0.5s ease; }
+  @keyframes scanLine {
+    0% { top: 0; }
+    100% { top: 100%; }
+  }
+  .scan-line {
+    position: absolute; left: 0; right: 0; height: 2px;
+    background: linear-gradient(to right, transparent, #6366f1, transparent);
+    animation: scanLine 2s linear infinite;
+  }
+  .card-hover { transition: all 0.3s ease; }
+  .card-hover:hover { transform: translateY(-2px); }
+  @keyframes typewriter {
+    from { width: 0; }
+    to { width: 100%; }
+  }
+  .network-node { transition: all 0.3s ease; }
+  .attacking { animation: pulse-red 1s infinite; }
+  .log-entry { border-left: 2px solid #374151; }
+  .log-entry.danger { border-left-color: #ef4444; }
+  .log-entry.warning { border-left-color: #f59e0b; }
+  .log-entry.info { border-left-color: #6366f1; }
+  .log-entry.success { border-left-color: #10b981; }
+  .tooltip { position: relative; }
+  .tooltip:hover .tooltip-text { display: block; }
+  .tooltip-text { display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); background: #1e293b; border: 1px solid #334155; border-radius: 6px; padding: 8px 12px; font-size: 12px; white-space: nowrap; z-index: 50; margin-bottom: 8px; }
+  input[type="text"] { background: #1e1e2e; border: 1px solid #374151; color: #e2e8f0; border-radius: 8px; padding: 8px 16px; width: 100%; font-family: 'JetBrains Mono', monospace; font-size: 14px; outline: none; transition: border-color 0.2s; }
+  input[type="text"]:focus { border-color: #6366f1; }
+  .btn { cursor: pointer; transition: all 0.2s; font-family: 'Space Grotesk', sans-serif; font-weight: 600; border-radius: 8px; padding: 10px 20px; font-size: 14px; border: none; }
+  .btn-primary { background: #6366f1; color: white; }
+  .btn-primary:hover { background: #4f46e5; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-danger:hover { background: #dc2626; }
+  .btn-warning { background: #f59e0b; color: white; }
+  .btn-warning:hover { background: #d97706; }
+  .btn-ghost { background: transparent; border: 1px solid #374151; color: #94a3b8; }
+  .btn-ghost:hover { background: #1e293b; }
+  .severity-critical { color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3); }
+  .severity-high { color: #f59e0b; background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3); }
+  .severity-medium { color: #6366f1; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.3); }
+  .severity-low { color: #10b981; background: rgba(16,185,129,0.1); border: 1px solid rgba(16,185,129,0.3); }
+</style>
+</head>
+<body class="min-h-screen">
+
+<!-- Header -->
+<header class="border-b border-gray-800 bg-gray-950 sticky top-0 z-40">
+  <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/30 flex items-center justify-center pulse-danger">
+        <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-white">WiFi Threat Simulator</h1>
+        <p class="text-xs text-gray-500 mono">v2.4.1 — Mode: Edukasi</p>
+      </div>
+    </div>
+    <div class="flex items-center gap-2">
+      <span class="mono text-xs text-red-400 bg-red-400/10 border border-red-400/20 px-3 py-1 rounded-full">● LIVE SIM</span>
+      <span id="clock" class="mono text-xs text-gray-500"></span>
+    </div>
+  </div>
+</header>
+
+<!-- Main -->
+<div class="max-w-7xl mx-auto px-4 py-6">
+
+  <!-- Hero Alert Banner -->
+  <div class="mb-6 bg-red-950/40 border border-red-800/50 rounded-2xl p-5 flex items-start gap-4 glow-red fade-up">
+    <div class="text-3xl">⚠️</div>
+    <div>
+      <p class="font-bold text-red-300 text-lg">Peringatan Keamanan</p>
+      <p class="text-red-400/80 text-sm mt-1">Simulasi ini dibuat untuk tujuan <strong class="text-red-300">edukasi</strong> semata. Semua serangan yang digambarkan bersifat ilustratif. Memahami ancaman adalah langkah pertama perlindungan diri di dunia digital.</p>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 card-hover">
+      <p class="text-xs text-gray-500 mono mb-1">JENIS SERANGAN</p>
+      <p class="text-3xl font-bold text-white">6</p>
+      <p class="text-xs text-gray-600 mt-1">Disimulasikan</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 card-hover">
+      <p class="text-xs text-gray-500 mono mb-1">TINGKAT RISIKO</p>
+      <p class="text-3xl font-bold text-red-400">KRITIS</p>
+      <p class="text-xs text-gray-600 mt-1">WiFi Publik</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 card-hover">
+      <p class="text-xs text-gray-500 mono mb-1">PENGGUNA RENTAN</p>
+      <p class="text-3xl font-bold text-amber-400">87%</p>
+      <p class="text-xs text-gray-600 mt-1">Tanpa proteksi</p>
+    </div>
+    <div class="bg-gray-900 border border-gray-800 rounded-xl p-4 card-hover">
+      <p class="text-xs text-gray-500 mono mb-1">WAKTU KOMPROMI</p>
+      <p class="text-3xl font-bold text-indigo-400">&lt;30s</p>
+      <p class="text-xs text-gray-600 mt-1">Rata-rata</p>
+    </div>
+  </div>
+
+  <!-- Tab Navigation -->
+  <div class="flex gap-1 mb-6 bg-gray-950 border border-gray-800 rounded-xl p-1 overflow-x-auto">
+    <button onclick="switchTab('network')" id="tab-network" class="tab-active btn px-4 py-2 text-sm whitespace-nowrap rounded-lg">🌐 Peta Jaringan</button>
+    <button onclick="switchTab('mitm')" id="tab-mitm" class="tab-inactive btn px-4 py-2 text-sm whitespace-nowrap rounded-lg">👁️ MITM Attack</button>
+    <button onclick="switchTab('sniff')" id="tab-sniff" class="tab-inactive btn px-4 py-2 text-sm whitespace-nowrap rounded-lg">🎣 Packet Sniffing</button>
+    <button onclick="switchTab('evil')" id="tab-evil" class="tab-inactive btn px-4 py-2 text-sm whitespace-nowrap rounded-lg">😈 Evil Twin AP</button>
+    <button onclick="switchTab('threats')" id="tab-threats" class="tab-inactive btn px-4 py-2 text-sm whitespace-nowrap rounded-lg">☠️ Daftar Ancaman</button>
+    <button onclick="switchTab('protect')" id="tab-protect" class="tab-inactive btn px-4 py-2 text-sm whitespace-nowrap rounded-lg">🛡️ Perlindungan</button>
+  </div>
+
+  <!-- TAB: Network Map -->
+  <div id="panel-network" class="tab-panel">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div class="lg:col-span-2 bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="font-bold text-white flex items-center gap-2">🗺️ Topologi Jaringan WiFi Publik</h2>
+          <button onclick="startNetworkScan()" class="btn btn-primary text-sm">▶ Mulai Simulasi</button>
+        </div>
+
+        <!-- SVG Network Diagram -->
+        <div class="relative bg-gray-950 rounded-xl p-6" style="min-height:320px; overflow:hidden;">
+          <div class="scan-line" id="scan-line" style="display:none;"></div>
+          <svg viewBox="0 0 600 280" class="w-full h-full">
+            <!-- Internet Cloud -->
+            <ellipse cx="300" cy="35" rx="80" ry="25" fill="#1e293b" stroke="#334155" stroke-width="1.5"/>
+            <text x="300" y="40" text-anchor="middle" fill="#64748b" font-size="12" font-family="Space Grotesk">🌐 Internet</text>
+
+            <!-- ISP Line -->
+            <line x1="300" y1="60" x2="300" y2="110" stroke="#334155" stroke-width="1.5" stroke-dasharray="4,2"/>
+
+            <!-- Legit Router -->
+            <rect x="255" y="110" width="90" height="50" rx="8" fill="#1e293b" stroke="#10b981" stroke-width="1.5" id="router-legit"/>
+            <text x="300" y="133" text-anchor="middle" fill="#10b981" font-size="11" font-family="Space Grotesk" font-weight="600">WiFi Router</text>
+            <text x="300" y="150" text-anchor="middle" fill="#6b7280" font-size="9" font-family="JetBrains Mono">CafeNet_Free</text>
+
+            <!-- Attacker Router (Evil Twin) -->
+            <rect x="455" y="110" width="110" height="50" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" id="router-evil" style="display:none"/>
+            <text x="510" y="133" text-anchor="middle" fill="#ef4444" font-size="11" font-family="Space Grotesk" font-weight="600">Evil Twin AP</text>
+            <text x="510" y="150" text-anchor="middle" fill="#6b7280" font-size="9" font-family="JetBrains Mono">CafeNet_Free</text>
+
+            <!-- Attacker Device -->
+            <rect x="30" y="110" width="100" height="50" rx="8" fill="#1e293b" stroke="#ef4444" stroke-width="1.5" id="attacker-device"/>
+            <text x="80" y="133" text-anchor="middle" fill="#ef4444" font-size="11" font-family="Space Grotesk" font-weight="600">🕵️ Attacker</text>
+            <text x="80" y="150" text-anchor="middle" fill="#6b7280" font-size="9" font-family="JetBrains Mono">Kali Linux</text>
+
+            <!-- Attack line (hidden) -->
+            <line x1="130" y1="135" x2="255" y2="135" stroke="#ef4444" stroke-width="2" stroke-dasharray="6,3" id="attack-line" style="display:none"/>
+
+            <!-- Users -->
+            <circle cx="160" cy="230" r="28" fill="#1e293b" stroke="#6366f1" stroke-width="1.5" id="user1"/>
+            <text x="160" y="226" text-anchor="middle" fill="#a5b4fc" font-size="14">👤</text>
+            <text x="160" y="245" text-anchor="middle" fill="#6366f1" font-size="9" font-family="JetBrains Mono">User A</text>
+
+            <circle cx="300" cy="230" r="28" fill="#1e293b" stroke="#6366f1" stroke-width="1.5" id="user2"/>
+            <text x="300" y="226" text-anchor="middle" fill="#a5b4fc" font-size="14">👤</text>
+            <text x="300" y="245" text-anchor="middle" fill="#6366f1" font-size="9" font-family="JetBrains Mono">User B</text>
+
+            <circle cx="440" cy="230" r="28" fill="#1e293b" stroke="#6366f1" stroke-width="1.5" id="user3"/>
+            <text x="440" y="226" text-anchor="middle" fill="#a5b4fc" font-size="14">👤</text>
+            <text x="440" y="245" text-anchor="middle" fill="#6366f1" font-size="9" font-family="JetBrains Mono">User C</text>
+
+            <!-- User-Router lines -->
+            <line x1="175" y1="203" x2="275" y2="160" stroke="#334155" stroke-width="1" id="line1"/>
+            <line x1="300" y1="202" x2="300" y2="160" stroke="#334155" stroke-width="1" id="line2"/>
+            <line x1="425" y1="203" x2="325" y2="160" stroke="#334155" stroke-width="1" id="line3"/>
+
+            <!-- Data packets (animated) -->
+            <circle cx="0" cy="0" r="4" fill="#6366f1" id="packet1" style="display:none"/>
+            <circle cx="0" cy="0" r="4" fill="#ef4444" id="packet2" style="display:none"/>
+
+            <!-- MITM position indicator -->
+            <text x="300" y="270" text-anchor="middle" fill="#374151" font-size="10" font-family="Space Grotesk" id="network-status">Klik "Mulai Simulasi" untuk melihat serangan</text>
+          </svg>
+        </div>
+
+        <!-- Simulation Log -->
+        <div class="mt-4 terminal rounded-xl p-4 mono text-xs" style="min-height:130px; max-height:180px; overflow-y:auto;" id="sim-log">
+          <p class="text-gray-600">$ Menunggu simulasi dimulai...</p>
+          <p class="text-gray-600">$ ▌<span class="blink">_</span></p>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white mb-3 text-sm">📡 Jaringan Terdeteksi</h3>
+          <div class="space-y-2">
+            <div class="flex items-center justify-between py-2 border-b border-gray-800">
+              <div>
+                <p class="text-sm text-white mono">CafeNet_Free</p>
+                <p class="text-xs text-gray-500">▓▓▓▓░ -45 dBm</p>
+              </div>
+              <span class="text-xs severity-low px-2 py-1 rounded-lg">AMAN</span>
+            </div>
+            <div class="flex items-center justify-between py-2 border-b border-gray-800">
+              <div>
+                <p class="text-sm text-white mono">FreeWifi_123</p>
+                <p class="text-xs text-gray-500">▓▓▓░░ -62 dBm</p>
+              </div>
+              <span class="text-xs severity-medium px-2 py-1 rounded-lg">WASPADA</span>
+            </div>
+            <div class="flex items-center justify-between py-2 border-b border-gray-800">
+              <div>
+                <p class="text-sm text-red-300 mono">CafeNet_Free</p>
+                <p class="text-xs text-gray-500">▓▓▓▓▓ -38 dBm</p>
+              </div>
+              <span class="text-xs severity-critical px-2 py-1 rounded-lg animate-pulse">PALSU!</span>
+            </div>
+            <div class="flex items-center justify-between py-2">
+              <div>
+                <p class="text-sm text-white mono">AndroidAP_4F2A</p>
+                <p class="text-xs text-gray-500">▓▓░░░ -71 dBm</p>
+              </div>
+              <span class="text-xs severity-high px-2 py-1 rounded-lg">RISIKO</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white mb-3 text-sm">🔴 Status Ancaman Real-time</h3>
+          <div class="space-y-2" id="threat-status">
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <div class="w-2 h-2 rounded-full bg-gray-600"></div>Menunggu simulasi...
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: MITM -->
+  <div id="panel-mitm" class="tab-panel hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <h2 class="font-bold text-white mb-2 flex items-center gap-2">👁️ Man-in-the-Middle Attack</h2>
+        <p class="text-sm text-gray-400 mb-5">Penyerang memposisikan diri <span class="text-amber-400">di antara</span> korban dan router, mencegat semua komunikasi tanpa sepengetahuan korban.</p>
+
+        <!-- MITM Flow Diagram -->
+        <div class="bg-gray-950 rounded-xl p-5 mb-4 relative overflow-hidden">
+          <div class="flex items-center justify-between gap-2">
+            <!-- Victim -->
+            <div class="flex flex-col items-center gap-2">
+              <div class="w-14 h-14 rounded-xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-2xl" id="mitm-victim">👤</div>
+              <p class="text-xs text-indigo-400 mono text-center">Korban<br>192.168.1.5</p>
+            </div>
+            <!-- Arrow Victim -> Attacker -->
+            <div class="flex-1 flex flex-col items-center gap-1">
+              <div class="w-full h-0.5 bg-gradient-to-r from-indigo-500 to-red-500" id="mitm-arrow1"></div>
+              <p class="text-xs text-red-400 mono">→ HTTP (data)</p>
+            </div>
+            <!-- Attacker -->
+            <div class="flex flex-col items-center gap-2">
+              <div class="w-14 h-14 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center justify-center text-2xl attacking" id="mitm-attacker">🕵️</div>
+              <p class="text-xs text-red-400 mono text-center">Attacker<br>192.168.1.3</p>
+            </div>
+            <!-- Arrow Attacker -> Router -->
+            <div class="flex-1 flex flex-col items-center gap-1">
+              <div class="w-full h-0.5 bg-gradient-to-r from-red-500 to-green-500" id="mitm-arrow2"></div>
+              <p class="text-xs text-green-400 mono">→ Forward</p>
+            </div>
+            <!-- Router -->
+            <div class="flex flex-col items-center gap-2">
+              <div class="w-14 h-14 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center justify-center text-2xl" id="mitm-router">📡</div>
+              <p class="text-xs text-green-400 mono text-center">Router<br>192.168.1.1</p>
+            </div>
+          </div>
+          <div class="mt-4 text-center">
+            <p class="text-xs text-gray-600 mono">Semua data Anda: <span class="text-red-400" id="mitm-data">LOGIN · PASSWORD · KARTU KREDIT</span></p>
+          </div>
+        </div>
+
+        <!-- ARP Poisoning Demo -->
+        <div class="terminal rounded-xl p-4">
+          <p class="text-green-400 mono text-xs mb-2">$ arpspoof -i wlan0 -t 192.168.1.5 192.168.1.1</p>
+          <div id="mitm-output" class="mono text-xs text-gray-400 space-y-1">
+            <p class="text-gray-600">Tekan tombol untuk memulai ARP poisoning...</p>
+          </div>
+          <div class="mt-3">
+            <button onclick="runMITM()" class="btn btn-danger text-sm w-full">💀 Jalankan ARP Poisoning Sim</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white mb-3">📦 Data Tercegatat (Simulasi)</h3>
+          <div id="intercepted-data" class="space-y-2">
+            <p class="text-xs text-gray-600 mono">Belum ada data. Jalankan simulasi...</p>
+          </div>
+        </div>
+        <div class="bg-red-950/30 border border-red-800/40 rounded-2xl p-5">
+          <h3 class="font-bold text-red-300 mb-2">🚨 Dampak Nyata</h3>
+          <ul class="text-sm text-red-400/80 space-y-2">
+            <li class="flex gap-2"><span class="text-red-400">▸</span>Password akun media sosial dicuri</li>
+            <li class="flex gap-2"><span class="text-red-400">▸</span>Data perbankan dan kartu kredit terekspos</li>
+            <li class="flex gap-2"><span class="text-red-400">▸</span>Cookie session diambil (session hijacking)</li>
+            <li class="flex gap-2"><span class="text-red-400">▸</span>Percakapan pribadi bisa dibaca penyerang</li>
+            <li class="flex gap-2"><span class="text-red-400">▸</span>Konten web bisa dimodifikasi (SSL stripping)</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Packet Sniffing -->
+  <div id="panel-sniff" class="tab-panel hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <h2 class="font-bold text-white mb-2 flex items-center gap-2">🎣 Packet Sniffing</h2>
+        <p class="text-sm text-gray-400 mb-4">Penyerang memantau <span class="text-amber-400">semua lalu lintas jaringan</span> yang melewati WiFi publik. Koneksi HTTP (tanpa S) sepenuhnya terbaca.</p>
+
+        <!-- Login Form Demo -->
+        <div class="mb-4">
+          <p class="text-xs text-gray-500 mono mb-2">Simulasikan pengguna login di situs HTTP:</p>
+          <div class="bg-gray-800 rounded-xl p-4 border border-gray-700">
+            <p class="text-xs text-gray-500 mb-3 font-medium">⚠️ http://mybank.com/login (TIDAK AMAN)</p>
+            <input type="text" id="sniff-user" placeholder="Username..." class="mb-2" value="john.doe@email.com">
+            <input type="text" id="sniff-pass" placeholder="Password..." class="mb-3" value="P@ssw0rd123!">
+            <button onclick="sniffPackets()" class="btn btn-warning w-full">📡 Kirim & Simulasi Sniffing</button>
+          </div>
+        </div>
+
+        <!-- Packet capture output -->
+        <div class="terminal rounded-xl p-4" style="min-height:200px;">
+          <p class="text-amber-400 mono text-xs mb-2">$ tcpdump -i wlan0 -A port 80</p>
+          <div id="sniff-output" class="mono text-xs space-y-1 text-gray-500">
+            <p>listening on wlan0, link-type EN10MB...</p>
+            <p class="blink">▌</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white mb-3">🔍 Analisis Protokol</h3>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between p-3 bg-green-950/30 border border-green-800/30 rounded-lg">
+              <div>
+                <p class="text-sm font-medium text-green-300">HTTPS (port 443)</p>
+                <p class="text-xs text-gray-500">TLS 1.3 encrypted</p>
+              </div>
+              <span class="text-xs severity-low px-2 py-1 rounded-lg">🔒 AMAN</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-red-950/30 border border-red-800/30 rounded-lg">
+              <div>
+                <p class="text-sm font-medium text-red-300">HTTP (port 80)</p>
+                <p class="text-xs text-gray-500">Plaintext — terbaca!</p>
+              </div>
+              <span class="text-xs severity-critical px-2 py-1 rounded-lg">⚠️ BAHAYA</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-amber-950/30 border border-amber-800/30 rounded-lg">
+              <div>
+                <p class="text-sm font-medium text-amber-300">DNS (port 53)</p>
+                <p class="text-xs text-gray-500">Query domain terbaca</p>
+              </div>
+              <span class="text-xs severity-high px-2 py-1 rounded-lg">⚡ RISIKO</span>
+            </div>
+            <div class="flex items-center justify-between p-3 bg-indigo-950/30 border border-indigo-800/30 rounded-lg">
+              <div>
+                <p class="text-sm font-medium text-indigo-300">FTP (port 21)</p>
+                <p class="text-xs text-gray-500">Kredensial plaintext</p>
+              </div>
+              <span class="text-xs severity-critical px-2 py-1 rounded-lg">☠️ KRITIS</span>
+            </div>
+          </div>
+        </div>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white mb-3">📊 Statistik Sniffing</h3>
+          <div id="sniff-stats" class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-400">HTTP Traffic</span>
+                <span class="text-red-400">72%</span>
+              </div>
+              <div class="h-2 bg-gray-800 rounded-full"><div class="h-2 bg-red-500 rounded-full progress-bar" style="width:72%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-400">Credentials Exposed</span>
+                <span class="text-amber-400" id="cred-count">0</span>
+              </div>
+              <div class="h-2 bg-gray-800 rounded-full"><div class="h-2 bg-amber-500 rounded-full progress-bar" id="cred-bar" style="width:0%"></div></div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="text-gray-400">HTTPS Traffic</span>
+                <span class="text-green-400">28%</span>
+              </div>
+              <div class="h-2 bg-gray-800 rounded-full"><div class="h-2 bg-green-500 rounded-full progress-bar" style="width:28%"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Evil Twin -->
+  <div id="panel-evil" class="tab-panel hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+        <h2 class="font-bold text-white mb-2">😈 Evil Twin Access Point</h2>
+        <p class="text-sm text-gray-400 mb-4">Penyerang membuat hotspot <span class="text-red-400 font-medium">dengan nama identik</span> (SSID sama) dengan WiFi asli, namun dengan sinyal lebih kuat agar perangkat korban terhubung otomatis.</p>
+
+        <!-- Evil Twin Setup -->
+        <div class="terminal rounded-xl p-4 mb-4 mono text-xs">
+          <p class="text-green-400 mb-2">$ hostapd-wpe evil_twin.conf</p>
+          <div id="evil-output" class="space-y-1 text-gray-500">
+            <p>Configuration Mode: Evil Twin AP</p>
+            <p>SSID: <span class="text-amber-400">CafeNet_Free</span></p>
+            <p>Channel: 6 | TX Power: <span class="text-red-400">MAX</span></p>
+            <p>Deauth Flood: <span class="text-red-400">ENABLED</span></p>
+            <p>Captive Portal: <span class="text-amber-400">ACTIVE</span></p>
+          </div>
+          <button onclick="launchEvilTwin()" class="btn btn-danger text-sm w-full mt-3">😈 Launch Evil Twin</button>
+        </div>
+
+        <!-- Captive Portal Preview -->
+        <div class="bg-white rounded-xl p-4 border-2 border-red-500/50" id="captive-portal" style="display:none;">
+          <div class="text-center mb-3">
+            <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-2">
+              <span class="text-white text-xl">📶</span>
+            </div>
+            <p class="text-gray-900 font-bold text-sm">CafeNet Free WiFi</p>
+            <p class="text-gray-500 text-xs">Masuk untuk menggunakan internet gratis</p>
+          </div>
+          <div class="space-y-2">
+            <input type="text" placeholder="Email / Username" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm" style="background:white;">
+            <input type="text" placeholder="Password" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-gray-900 text-sm" style="background:white;">
+            <div class="w-full bg-blue-600 rounded-lg py-2 text-center text-white text-sm font-medium cursor-pointer" onclick="captiveLogin()">Masuk →</div>
+          </div>
+          <p class="text-center text-gray-400 text-xs mt-2">Dengan masuk, Anda menyetujui syarat kami</p>
+          <div class="mt-2 bg-red-50 border border-red-200 rounded-lg p-2">
+            <p class="text-red-500 text-xs text-center">⚠️ INI PORTAL PALSU — Simulasi Edukasi</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="space-y-4">
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+          <h3 class="font-bold text-white mb-3">🎯 Cara Kerja Evil Twin</h3>
+          <div class="space-y-3">
+            <div class="flex gap-3 p-3 bg-gray-800 rounded-lg">
+              <div class="w-6 h-6 rounded-full bg-red-500/20 border border-red-500/30 flex items-center justify-center text-xs font-bold text-red-400 flex-shrink-0">1</div>
+              <div>
+                <p class="text-sm font-medium text-white">Kloning SSID</p>
+                <p class="text-xs text-gray-500">Penyerang membuat AP dengan nama WiFi yang sama persis (CafeNet_Free)</p>
+              </div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-800 rounded-lg">
+              <div class="w-6 h-6 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-xs font-bold text-amber-400 flex-shrink-0">2</div>
+              <div>
+                <p class="text-sm font-medium text-white">Deauthentication Attack</p>
+                <p class="text-xs text-gray-500">Mengirim frame disconnect ke semua klien WiFi asli secara paksa</p>
+              </div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-800 rounded-lg">
+              <div class="w-6 h-6 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-xs font-bold text-indigo-400 flex-shrink-0">3</div>
+              <div>
+                <p class="text-sm font-medium text-white">Koneksi Otomatis</p>
+                <p class="text-xs text-gray-500">Perangkat korban terhubung ke AP palsu karena sinyal lebih kuat</p>
+              </div>
+            </div>
+            <div class="flex gap-3 p-3 bg-gray-800 rounded-lg">
+              <div class="w-6 h-6 rounded-full bg-green-500/20 border border-green-500/30 flex items-center justify-center text-xs font-bold text-green-400 flex-shrink-0">4</div>
+              <div>
+                <p class="text-sm font-medium text-white">Captive Portal Palsu</p>
+                <p class="text-xs text-gray-500">Menampilkan halaman login palsu untuk mencuri kredensial</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-5" id="captured-creds" style="display:none;">
+          <h3 class="font-bold text-red-300 mb-3">☠️ Kredensial Tertangkap</h3>
+          <div id="creds-display" class="mono text-xs space-y-1"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Threats -->
+  <div id="panel-threats" class="tab-panel hidden">
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+      <!-- Threat Cards -->
+      <div class="bg-gray-900 border border-red-800/30 rounded-2xl p-5 card-hover">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-xl">🕵️</div>
+          <span class="text-xs severity-critical px-2 py-1 rounded-lg">KRITIS</span>
+        </div>
+        <h3 class="font-bold text-white mb-1">Man-in-the-Middle (MITM)</h3>
+        <p class="text-xs text-gray-400 mb-3">Penyerang memposisikan diri di antara Anda dan router, membaca semua komunikasi tanpa terdeteksi.</p>
+        <div class="space-y-1">
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Target:</span> Semua pengguna WiFi publik</p>
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Tools:</span> arpspoof, Ettercap, Bettercap</p>
+          <p class="text-xs text-gray-600"><span class="text-red-400">Risiko:</span> Pencurian data sensitif lengkap</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 border border-red-800/30 rounded-2xl p-5 card-hover">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-xl">🎣</div>
+          <span class="text-xs severity-critical px-2 py-1 rounded-lg">KRITIS</span>
+        </div>
+        <h3 class="font-bold text-white mb-1">Packet Sniffing</h3>
+        <p class="text-xs text-gray-400 mb-3">Monitoring semua paket data yang melintas di jaringan. Data HTTP (tanpa enkripsi) terbaca sepenuhnya.</p>
+        <div class="space-y-1">
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Target:</span> Pengguna situs HTTP</p>
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Tools:</span> Wireshark, tcpdump, dsniff</p>
+          <p class="text-xs text-gray-600"><span class="text-red-400">Risiko:</span> Login & password dicuri</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 border border-red-800/30 rounded-2xl p-5 card-hover">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-xl">😈</div>
+          <span class="text-xs severity-critical px-2 py-1 rounded-lg">KRITIS</span>
+        </div>
+        <h3 class="font-bold text-white mb-1">Evil Twin AP</h3>
+        <p class="text-xs text-gray-400 mb-3">Access point palsu dengan SSID identik. Korban terhubung tanpa sadar karena sinyal lebih kuat.</p>
+        <div class="space-y-1">
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Target:</span> Pengguna yang auto-connect</p>
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Tools:</span> hostapd-wpe, airbase-ng</p>
+          <p class="text-xs text-gray-600"><span class="text-red-400">Risiko:</span> Kontrol penuh lalu lintas</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 border border-amber-800/30 rounded-2xl p-5 card-hover">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-xl">🌐</div>
+          <span class="text-xs severity-high px-2 py-1 rounded-lg">TINGGI</span>
+        </div>
+        <h3 class="font-bold text-white mb-1">DNS Spoofing</h3>
+        <p class="text-xs text-gray-400 mb-3">Pemalsuan respons DNS untuk mengarahkan korban ke situs web palsu meskipun mengetikkan URL yang benar.</p>
+        <div class="space-y-1">
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Target:</span> Semua pengguna</p>
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Tools:</span> dnsspoof, Metasploit</p>
+          <p class="text-xs text-gray-600"><span class="text-red-400">Risiko:</span> Phishing + malware</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 border border-amber-800/30 rounded-2xl p-5 card-hover">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl">🍪</div>
+          <span class="text-xs severity-high px-2 py-1 rounded-lg">TINGGI</span>
+        </div>
+        <h3 class="font-bold text-white mb-1">Session Hijacking</h3>
+        <p class="text-xs text-gray-400 mb-3">Mencuri cookie sesi aktif untuk mengambil alih akun yang sudah login tanpa memerlukan password.</p>
+        <div class="space-y-1">
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Target:</span> Sesi yang aktif (browser)</p>
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Tools:</span> Firesheep, Hamster+Ferret</p>
+          <p class="text-xs text-gray-600"><span class="text-red-400">Risiko:</span> Akun sosmed diambil alih</p>
+        </div>
+      </div>
+
+      <div class="bg-gray-900 border border-indigo-800/30 rounded-2xl p-5 card-hover">
+        <div class="flex items-start justify-between mb-3">
+          <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl">💥</div>
+          <span class="text-xs severity-medium px-2 py-1 rounded-lg">SEDANG</span>
+        </div>
+        <h3 class="font-bold text-white mb-1">SSL Stripping</h3>
+        <p class="text-xs text-gray-400 mb-3">Menurunkan koneksi HTTPS menjadi HTTP, sehingga enkripsi hilang dan data dapat dibaca penyerang.</p>
+        <div class="space-y-1">
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Target:</span> Situs HTTPS tanpa HSTS</p>
+          <p class="text-xs text-gray-600"><span class="text-amber-400">Tools:</span> sslstrip, Bettercap</p>
+          <p class="text-xs text-gray-600"><span class="text-red-400">Risiko:</span> Data terenkripsi jadi plaintext</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: Protection -->
+  <div id="panel-protect" class="tab-panel hidden">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div>
+        <h2 class="font-bold text-white text-lg mb-4">🛡️ Cara Melindungi Diri</h2>
+        <div class="space-y-3">
+          <div class="bg-gray-900 border border-green-800/30 rounded-2xl p-5 card-hover">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 bg-green-500/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔐</div>
+              <div>
+                <h3 class="font-bold text-white mb-1">Gunakan VPN</h3>
+                <p class="text-sm text-gray-400">VPN mengenkripsi seluruh lalu lintas internet Anda. Bahkan jika penyerang mencegat, data terlihat acak dan tidak terbaca. <span class="text-green-400 font-medium">Perlindungan terbaik di WiFi publik.</span></p>
+                <div class="mt-2 flex items-center gap-2">
+                  <div class="h-1.5 w-full bg-gray-800 rounded-full"><div class="h-1.5 bg-green-500 rounded-full" style="width:95%"></div></div>
+                  <span class="text-xs text-green-400 whitespace-nowrap">95% efektif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-900 border border-green-800/30 rounded-2xl p-5 card-hover">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 bg-blue-500/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔒</div>
+              <div>
+                <h3 class="font-bold text-white mb-1">Hanya Gunakan HTTPS</h3>
+                <p class="text-sm text-gray-400">Pastikan URL selalu diawali <span class="text-green-400 mono">https://</span> dan ikon gembok terkunci. Gunakan ekstensi "HTTPS Everywhere" di browser.</p>
+                <div class="mt-2 flex items-center gap-2">
+                  <div class="h-1.5 w-full bg-gray-800 rounded-full"><div class="h-1.5 bg-blue-500 rounded-full" style="width:75%"></div></div>
+                  <span class="text-xs text-blue-400 whitespace-nowrap">75% efektif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-900 border border-green-800/30 rounded-2xl p-5 card-hover">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 bg-amber-500/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">📱</div>
+              <div>
+                <h3 class="font-bold text-white mb-1">Nonaktifkan Auto-Connect WiFi</h3>
+                <p class="text-sm text-gray-400">Matikan fitur terhubung otomatis ke jaringan yang pernah digunakan. Ini mencegah Evil Twin AP menangkap perangkat Anda.</p>
+                <div class="mt-2 flex items-center gap-2">
+                  <div class="h-1.5 w-full bg-gray-800 rounded-full"><div class="h-1.5 bg-amber-500 rounded-full" style="width:80%"></div></div>
+                  <span class="text-xs text-amber-400 whitespace-nowrap">80% efektif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-900 border border-green-800/30 rounded-2xl p-5 card-hover">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 bg-indigo-500/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🔑</div>
+              <div>
+                <h3 class="font-bold text-white mb-1">Aktifkan Two-Factor Authentication</h3>
+                <p class="text-sm text-gray-400">Meski password dicuri, penyerang tetap tidak bisa masuk tanpa kode OTP kedua. 2FA wajib untuk email, perbankan, dan media sosial.</p>
+                <div class="mt-2 flex items-center gap-2">
+                  <div class="h-1.5 w-full bg-gray-800 rounded-full"><div class="h-1.5 bg-indigo-500 rounded-full" style="width:90%"></div></div>
+                  <span class="text-xs text-indigo-400 whitespace-nowrap">90% efektif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-gray-900 border border-green-800/30 rounded-2xl p-5 card-hover">
+            <div class="flex items-start gap-4">
+              <div class="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-xl flex-shrink-0">🚫</div>
+              <div>
+                <h3 class="font-bold text-white mb-1">Hindari Transaksi Sensitif</h3>
+                <p class="text-sm text-gray-400">Jangan lakukan internet banking, belanja online, atau login akun penting saat menggunakan WiFi publik tanpa VPN.</p>
+                <div class="mt-2 flex items-center gap-2">
+                  <div class="h-1.5 w-full bg-gray-800 rounded-full"><div class="h-1.5 bg-red-500 rounded-full" style="width:100%"></div></div>
+                  <span class="text-xs text-red-400 whitespace-nowrap">100% efektif</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <h2 class="font-bold text-white text-lg mb-4">🔍 Cek Keamanan Koneksi Anda</h2>
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6 mb-4">
+          <p class="text-sm text-gray-400 mb-4">Jalankan audit keamanan simulasi untuk koneksi WiFi Anda:</p>
+          <button onclick="runSecurityAudit()" class="btn btn-primary w-full mb-4">🛡️ Mulai Security Audit</button>
+          <div id="audit-results" class="space-y-2"></div>
+        </div>
+
+        <div class="bg-gray-900 border border-gray-800 rounded-2xl p-6">
+          <h3 class="font-bold text-white mb-4">📊 Perbandingan Keamanan</h3>
+          <div class="space-y-3">
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="flex items-center gap-2"><span class="text-red-400">●</span> WiFi Publik (tanpa perlindungan)</span>
+                <span class="text-red-400 font-bold">BERBAHAYA</span>
+              </div>
+              <div class="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-full bg-red-500 rounded-full" style="width:90%">
+                  <div class="h-full bg-red-400 animate-pulse rounded-full" style="width:30%"></div>
+                </div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="flex items-center gap-2"><span class="text-amber-400">●</span> WiFi Publik + HTTPS only</span>
+                <span class="text-amber-400 font-bold">SEDANG</span>
+              </div>
+              <div class="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-full bg-amber-500 rounded-full" style="width:45%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="flex items-center gap-2"><span class="text-green-400">●</span> WiFi Publik + VPN + 2FA</span>
+                <span class="text-green-400 font-bold">AMAN</span>
+              </div>
+              <div class="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-full bg-green-500 rounded-full" style="width:92%"></div>
+              </div>
+            </div>
+            <div>
+              <div class="flex justify-between text-xs mb-1">
+                <span class="flex items-center gap-2"><span class="text-indigo-400">●</span> Data Seluler (4G/5G)</span>
+                <span class="text-indigo-400 font-bold">PALING AMAN</span>
+              </div>
+              <div class="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <div class="h-full bg-indigo-500 rounded-full" style="width:98%"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Footer -->
+<footer class="border-t border-gray-800 mt-12 py-6 text-center">
+  <p class="text-xs text-gray-600 mono">WiFi Threat Simulator — Edukasi Keamanan Siber | Dibuat untuk tujuan pembelajaran</p>
+  <p class="text-xs text-gray-700 mt-1">⚠️ Seluruh simulasi bersifat ilustratif. Tidak ada data nyata yang dikumpulkan.</p>
+</footer>
+
+<script>
+// Clock
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clock').textContent = now.toLocaleTimeString('id-ID');
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Tab Switching
+function switchTab(name) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('[id^="tab-"]').forEach(t => { t.classList.remove('tab-active'); t.classList.add('tab-inactive'); });
+  document.getElementById('panel-' + name).classList.remove('hidden');
+  document.getElementById('tab-' + name).classList.remove('tab-inactive');
+  document.getElementById('tab-' + name).classList.add('tab-active');
+}
+
+// ===== NETWORK SIMULATION =====
+let simRunning = false;
+function startNetworkScan() {
+  if (simRunning) return;
+  simRunning = true;
+  const log = document.getElementById('sim-log');
+  const scanLine = document.getElementById('scan-line');
+  const router_evil = document.getElementById('router-evil');
+  const attack_line = document.getElementById('attack-line');
+  const threatStatus = document.getElementById('threat-status');
+
+  scanLine.style.display = 'block';
+  const logs = [
+    { t: 0, c: 'text-green-400', m: '$ Memindai jaringan WiFi di sekitar...' },
+    { t: 800, c: 'text-gray-400', m: '  [+] Ditemukan: CafeNet_Free (BSSID: AA:BB:CC:11:22:33)' },
+    { t: 1500, c: 'text-gray-400', m: '  [+] Ditemukan: FreeWifi_123 (BSSID: DD:EE:FF:44:55:66)' },
+    { t: 2200, c: 'text-red-400', m: '  [!] ANOMALI: CafeNet_Free duplikat terdeteksi!' },
+    { t: 2800, c: 'text-red-400', m: '  [!] BSSID: FF:00:11:22:33:44 — Sinyal lebih kuat -38dBm' },
+    { t: 3400, c: 'text-amber-400', m: '  [>] Mendeteksi ARP poisoning aktif di jaringan...' },
+    { t: 4000, c: 'text-red-400', m: '  [!!!] ARP POISON CONFIRMED — MITM aktif!' },
+    { t: 4600, c: 'text-amber-400', m: '  [>] Menganalisis paket yang tercegatat...' },
+    { t: 5200, c: 'text-red-400', m: '  [!!!] PERINGATAN: Data sensitif dalam risiko tinggi!' },
+  ];
+
+  logs.forEach(({ t, c, m }) => {
+    setTimeout(() => {
+      const p = document.createElement('p');
+      p.className = `${c} mono text-xs slide-in`;
+      p.textContent = m;
+      log.appendChild(p);
+      log.scrollTop = log.scrollHeight;
+    }, t);
+  });
+
+  setTimeout(() => {
+    router_evil.style.display = 'block';
+    attack_line.style.display = 'block';
+  }, 2200);
+
+  setTimeout(() => {
+    threatStatus.innerHTML = `
+      <div class="flex items-center gap-2 text-xs text-red-400 animate-pulse"><div class="w-2 h-2 rounded-full bg-red-500"></div>Evil Twin AP Aktif!</div>
+      <div class="flex items-center gap-2 text-xs text-amber-400"><div class="w-2 h-2 rounded-full bg-amber-500"></div>ARP Poisoning Terdeteksi</div>
+      <div class="flex items-center gap-2 text-xs text-indigo-400"><div class="w-2 h-2 rounded-full bg-indigo-500"></div>3 Klien Terhubung</div>
+      <div class="flex items-center gap-2 text-xs text-red-400"><div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>Data Dicegat: 847 paket</div>
+    `;
+  }, 4000);
+
+  setTimeout(() => { scanLine.style.display = 'none'; simRunning = false; }, 5500);
+}
+
+// ===== MITM SIMULATION =====
+let mitmRunning = false;
+function runMITM() {
+  if (mitmRunning) return;
+  mitmRunning = true;
+  const output = document.getElementById('mitm-output');
+  const intercepted = document.getElementById('intercepted-data');
+  output.innerHTML = '';
+
+  const steps = [
+    { d: 0, c: 'text-amber-400', t: 'Inisialisasi ARP poisoning...' },
+    { d: 600, c: 'text-gray-400', t: '  Mengirim ARP Reply ke 192.168.1.5...' },
+    { d: 1000, c: 'text-gray-400', t: '  Mengirim ARP Reply ke 192.168.1.1...' },
+    { d: 1500, c: 'text-red-400', t: '  [!] ARP Table diracuni! IP Forwarding aktif.' },
+    { d: 2000, c: 'text-green-400', t: '  [✓] Posisi MITM berhasil! Memantau traffic...' },
+    { d: 2500, c: 'text-amber-400', t: '  Mencegat paket HTTP dari 192.168.1.5...' },
+    { d: 3000, c: 'text-red-400', t: '  [!] CREDENTIAL CAPTURED!' },
+  ];
+
+  steps.forEach(({ d, c, t }) => {
+    setTimeout(() => {
+      const p = document.createElement('p');
+      p.className = `${c} slide-in`;
+      p.textContent = t;
+      output.appendChild(p);
+      output.scrollTop = output.scrollHeight;
+    }, d);
+  });
+
+  setTimeout(() => {
+    intercepted.innerHTML = `
+      <div class="space-y-2">
+        <div class="terminal rounded-lg p-3 text-xs mono">
+          <p class="text-green-400">POST /login HTTP/1.1</p>
+          <p class="text-gray-400">Host: mybank-online.com</p>
+          <p class="text-gray-500">Content-Type: application/x-www-form-urlencoded</p>
+          <p class="text-red-400 mt-2">username=<span class="text-amber-400">budi.santoso</span>&password=<span class="text-amber-400">BankPass2024!</span></p>
+        </div>
+        <div class="terminal rounded-lg p-3 text-xs mono">
+          <p class="text-green-400">GET /api/profile HTTP/1.1</p>
+          <p class="text-gray-400">Cookie: <span class="text-red-400">session=eyJhbGciOiJIUzI1NiJ9.abc123</span></p>
+        </div>
+        <div class="bg-red-950/40 border border-red-800/40 rounded-lg p-2 text-xs text-red-400">
+          ⚠️ Data di atas adalah simulasi — tidak ada data nyata yang tertangkap
+        </div>
+      </div>
+    `;
+    mitmRunning = false;
+  }, 3200);
+}
+
+// ===== PACKET SNIFFING =====
+let sniffCount = 0;
+function sniffPackets() {
+  const user = document.getElementById('sniff-user').value;
+  const pass = document.getElementById('sniff-pass').value;
+  const output = document.getElementById('sniff-output');
+  const credCount = document.getElementById('cred-count');
+  const credBar = document.getElementById('cred-bar');
+
+  sniffCount++;
+  const ts = new Date().toLocaleTimeString('id-ID');
+
+  const packet = `
+<span class="text-gray-600">---[${ts}]---</span>
+<span class="text-green-400">POST http://mybank.com/login</span>
+<span class="text-gray-500">  192.168.1.47 → 103.12.45.89</span>
+<span class="text-gray-500">  Content-Type: application/x-www-form-urlencoded</span>
+<span class="text-amber-400">  [DATA] username=${user}</span>
+<span class="text-red-400">  [DATA] password=${pass}</span>
+<span class="text-gray-600">  ← Server: 200 OK (Login Berhasil)</span>`;
+
+  output.innerHTML += packet;
+  output.scrollTop = output.scrollHeight;
+
+  credCount.textContent = sniffCount;
+  credBar.style.width = Math.min(sniffCount * 20, 100) + '%';
+}
+
+// ===== EVIL TWIN =====
+let evilTwinActive = false;
+function launchEvilTwin() {
+  if (evilTwinActive) return;
+  evilTwinActive = true;
+  const output = document.getElementById('evil-output');
+
+  const steps = [
+    { d: 0, t: 'Menginisialisasi interface wlan0mon...', c: 'text-amber-400' },
+    { d: 700, t: 'Meluncurkan AP: CafeNet_Free (Channel 6)', c: 'text-gray-400' },
+    { d: 1400, t: 'Mengirim deauth frames ke semua klien...', c: 'text-red-400' },
+    { d: 2000, t: '[!] Klien terputus dari AP asli!', c: 'text-red-400' },
+    { d: 2600, t: 'Klien terhubung ke Evil Twin AP...', c: 'text-amber-400' },
+    { d: 3200, t: '[✓] Captive portal aktif — menunggu login...', c: 'text-green-400' },
+  ];
+
+  steps.forEach(({ d, t, c }) => {
+    setTimeout(() => {
+      const p = document.createElement('p');
+      p.className = c;
+      p.textContent = t;
+      output.appendChild(p);
+    }, d);
+  });
+
+  setTimeout(() => {
+    document.getElementById('captive-portal').style.display = 'block';
+  }, 3200);
+}
+
+function captiveLogin() {
+  const creds = document.getElementById('captured-creds');
+  const display = document.getElementById('creds-display');
+  creds.style.display = 'block';
+  const ts = new Date().toLocaleTimeString('id-ID');
+  display.innerHTML += `
+    <div class="bg-red-950/30 border border-red-800/30 rounded-lg p-2 mb-1">
+      <span class="text-red-400">[${ts}] CREDENTIAL CAPTURED!</span><br>
+      <span class="text-gray-500">Dari IP: 192.168.1.${Math.floor(Math.random()*200+10)}</span><br>
+      <span class="text-amber-400">User: user@email.com | Pass: password123</span>
+    </div>`;
+  document.getElementById('captive-portal').style.display = 'none';
+}
+
+// ===== SECURITY AUDIT =====
+function runSecurityAudit() {
+  const results = document.getElementById('audit-results');
+  results.innerHTML = '<p class="text-xs text-gray-500 mono">Menjalankan audit...</p>';
+
+  const checks = [
+    { d: 300, icon: '🔒', label: 'Koneksi HTTPS aktif', status: 'safe', msg: 'LULUS' },
+    { d: 700, icon: '🛡️', label: 'VPN terdeteksi', status: 'danger', msg: 'TIDAK ADA' },
+    { d: 1100, icon: '📡', label: 'DNS over HTTPS', status: 'danger', msg: 'NONAKTIF' },
+    { d: 1500, icon: '🔑', label: '2FA diaktifkan', status: 'warning', msg: 'SEBAGIAN' },
+    { d: 1900, icon: '📶', label: 'Auto-connect WiFi', status: 'danger', msg: 'AKTIF' },
+    { d: 2300, icon: '🔄', label: 'Update sistem terkini', status: 'safe', msg: 'TERKINI' },
+  ];
+
+  setTimeout(() => results.innerHTML = '', 200);
+
+  checks.forEach(({ d, icon, label, status, msg }) => {
+    setTimeout(() => {
+      const div = document.createElement('div');
+      const colorMap = { safe: 'severity-low', danger: 'severity-critical', warning: 'severity-high' };
+      div.className = 'flex items-center justify-between py-2 border-b border-gray-800 fade-up';
+      div.innerHTML = `
+        <span class="text-sm text-gray-300">${icon} ${label}</span>
+        <span class="text-xs ${colorMap[status]} px-2 py-1 rounded-lg">${msg}</span>`;
+      results.appendChild(div);
+    }, d);
+  });
+
+  setTimeout(() => {
+    const summary = document.createElement('div');
+    summary.className = 'mt-3 p-3 bg-red-950/30 border border-red-800/40 rounded-xl';
+    summary.innerHTML = '<p class="text-sm text-red-300 font-bold">⚠️ Risiko: TINGGI — Aktifkan VPN segera!</p>';
+    results.appendChild(summary);
+  }, 2600);
+}
+</script>
+</body>
+</html>
