@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MITM Attack Simulator — CyberSec Lab</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root {
+    --neon-green: #00ff9d;
+    --neon-red: #ff2d55;
+    --neon-blue: #00b4ff;
+    --neon-yellow: #ffd60a;
+    --dark-bg: #050a0f;
+    --panel-bg: #0a1520;
+    --panel-border: #1a3a5c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--dark-bg);
+    font-family: 'Rajdhani', sans-serif;
+    color: #c8d8e8;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,180,255,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,180,255,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse at 50% 0%, rgba(0,180,255,0.07) 0%, transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .mono { font-family: 'Share Tech Mono', monospace; }
+  .orbitron { font-family: 'Orbitron', monospace; }
+
+  /* Panels */
+  .panel {
+    background: var(--panel-bg);
+    border: 1px solid var(--panel-border);
+    border-radius: 8px;
+    position: relative;
+    overflow: hidden;
+  }
+  .panel::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--neon-blue), transparent);
+    opacity: 0.6;
+  }
+
+  /* Neon text */
+  .neon-green { color: var(--neon-green); text-shadow: 0 0 8px var(--neon-green); }
+  .neon-red { color: var(--neon-red); text-shadow: 0 0 8px var(--neon-red); }
+  .neon-blue { color: var(--neon-blue); text-shadow: 0 0 8px var(--neon-blue); }
+  .neon-yellow { color: var(--neon-yellow); text-shadow: 0 0 8px var(--neon-yellow); }
+
+  /* Node boxes */
+  .node {
+    border-radius: 12px;
+    padding: 16px 20px;
+    border: 2px solid;
+    position: relative;
+    text-align: center;
+    min-width: 130px;
+  }
+  .node-alice { border-color: var(--neon-green); background: rgba(0,255,157,0.06); }
+  .node-bob   { border-color: var(--neon-blue);  background: rgba(0,180,255,0.06); }
+  .node-mitm  { border-color: var(--neon-red);   background: rgba(255,45,85,0.08); }
+
+  .node-icon { font-size: 2rem; margin-bottom: 4px; }
+
+  /* Animated packet */
+  #packet {
+    width: 36px;
+    height: 36px;
+    background: var(--neon-green);
+    border-radius: 6px;
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1rem;
+    color: #000;
+    box-shadow: 0 0 18px var(--neon-green);
+    z-index: 20;
+    display: none;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+
+  /* Wire / path */
+  .wire-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    height: 4px;
+  }
+  .wire {
+    height: 2px;
+    width: 100%;
+    background: linear-gradient(90deg, var(--neon-blue) 0%, rgba(0,180,255,0.2) 100%);
+    position: relative;
+  }
+  .wire::after {
+    content: '';
+    position: absolute;
+    top: -1px; left: 0;
+    height: 4px;
+    width: 30%;
+    background: linear-gradient(90deg, transparent, white, transparent);
+    animation: wirePulse 3s infinite linear;
+  }
+  @keyframes wirePulse {
+    0%   { left: -30%; opacity: 0; }
+    20%  { opacity: 1; }
+    80%  { opacity: 1; }
+    100% { left: 100%; opacity: 0; }
+  }
+
+  /* Log terminal */
+  #log-terminal {
+    height: 200px;
+    overflow-y: auto;
+    padding: 12px;
+    background: #030609;
+    border-radius: 6px;
+    border: 1px solid #0e2233;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+  }
+  #log-terminal::-webkit-scrollbar { width: 5px; }
+  #log-terminal::-webkit-scrollbar-track { background: #030609; }
+  #log-terminal::-webkit-scrollbar-thumb { background: var(--neon-blue); border-radius: 3px; }
+
+  .log-safe    { color: var(--neon-green); }
+  .log-danger  { color: var(--neon-red); }
+  .log-info    { color: var(--neon-blue); }
+  .log-warn    { color: var(--neon-yellow); }
+  .log-normal  { color: #6a8fa8; }
+
+  /* Buttons */
+  .btn {
+    padding: 10px 24px;
+    border-radius: 6px;
+    font-family: 'Orbitron', monospace;
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    cursor: pointer;
+    border: 2px solid;
+    transition: all 0.2s;
+    text-transform: uppercase;
+  }
+  .btn-green {
+    background: rgba(0,255,157,0.1);
+    border-color: var(--neon-green);
+    color: var(--neon-green);
+  }
+  .btn-green:hover:not(:disabled) {
+    background: rgba(0,255,157,0.25);
+    box-shadow: 0 0 20px rgba(0,255,157,0.4);
+  }
+  .btn-red {
+    background: rgba(255,45,85,0.1);
+    border-color: var(--neon-red);
+    color: var(--neon-red);
+  }
+  .btn-red:hover:not(:disabled) {
+    background: rgba(255,45,85,0.25);
+    box-shadow: 0 0 20px rgba(255,45,85,0.4);
+  }
+  .btn-blue {
+    background: rgba(0,180,255,0.1);
+    border-color: var(--neon-blue);
+    color: var(--neon-blue);
+  }
+  .btn-blue:hover:not(:disabled) {
+    background: rgba(0,180,255,0.25);
+    box-shadow: 0 0 20px rgba(0,180,255,0.4);
+  }
+  .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* Toggle switch */
+  .toggle-wrap { display: flex; align-items: center; gap: 10px; cursor: pointer; }
+  .toggle {
+    width: 46px; height: 24px;
+    background: #0e2233;
+    border-radius: 12px;
+    border: 1px solid #1a3a5c;
+    position: relative;
+    transition: background 0.3s;
+  }
+  .toggle::after {
+    content: '';
+    width: 18px; height: 18px;
+    background: #4a6a8a;
+    border-radius: 50%;
+    position: absolute;
+    top: 2px; left: 2px;
+    transition: left 0.3s, background 0.3s;
+  }
+  .toggle.active { background: rgba(255,45,85,0.2); border-color: var(--neon-red); }
+  .toggle.active::after { left: 24px; background: var(--neon-red); box-shadow: 0 0 8px var(--neon-red); }
+
+  /* Email card */
+  .email-card {
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.82rem;
+    line-height: 1.8;
+    border: 1px solid;
+    min-height: 90px;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  .email-original { border-color: #1a4a2a; background: rgba(0,255,157,0.04); color: #a0e8c0; }
+  .email-tampered { border-color: #4a1a1a; background: rgba(255,45,85,0.05); color: #e8a0a0; }
+
+  /* Badge */
+  .badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 0.65rem;
+    font-family: 'Orbitron', monospace;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+  }
+  .badge-secure { background: rgba(0,255,157,0.15); border: 1px solid var(--neon-green); color: var(--neon-green); }
+  .badge-danger { background: rgba(255,45,85,0.15); border: 1px solid var(--neon-red); color: var(--neon-red); }
+  .badge-warn   { background: rgba(255,214,10,0.15); border: 1px solid var(--neon-yellow); color: var(--neon-yellow); }
+
+  /* Diagram area */
+  #diagram-area {
+    position: relative;
+    padding: 30px 0;
+  }
+
+  /* Interceptor node above wire */
+  #mitm-node-wrap {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    text-align: center;
+    z-index: 10;
+    transition: opacity 0.5s;
+  }
+  #mitm-vertical-line {
+    width: 2px;
+    height: 30px;
+    background: linear-gradient(to bottom, var(--neon-red), transparent);
+    margin: 0 auto;
+    box-shadow: 0 0 6px var(--neon-red);
+  }
+
+  /* Packet animation overlay */
+  #anim-layer {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 15;
+  }
+
+  /* Scan line effect */
+  @keyframes scanline {
+    0%   { top: -5%; }
+    100% { top: 105%; }
+  }
+  .scanline {
+    position: fixed;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,180,255,0.08), transparent);
+    pointer-events: none;
+    z-index: 1000;
+    animation: scanline 6s linear infinite;
+  }
+
+  /* Alert banner */
+  #alert-banner {
+    transition: all 0.4s;
+    overflow: hidden;
+    max-height: 0;
+  }
+  #alert-banner.show { max-height: 80px; }
+
+  /* Glitch text animation */
+  @keyframes glitch {
+    0%,100% { text-shadow: 0 0 8px var(--neon-red); }
+    25% { text-shadow: -2px 0 var(--neon-blue), 2px 0 var(--neon-yellow), 0 0 8px var(--neon-red); }
+    50% { text-shadow: 2px 0 var(--neon-blue), -2px 0 var(--neon-yellow), 0 0 8px var(--neon-red); }
+    75% { text-shadow: 0 2px var(--neon-blue), 0 -2px var(--neon-yellow), 0 0 8px var(--neon-red); }
+  }
+  .glitch-anim { animation: glitch 0.8s infinite; }
+
+  /* Textarea */
+  textarea, input[type=text] {
+    background: #030609;
+    border: 1px solid #1a3a5c;
+    border-radius: 6px;
+    color: #c8d8e8;
+    font-family: 'Share Tech Mono', monospace;
+    padding: 10px 12px;
+    width: 100%;
+    font-size: 0.82rem;
+    resize: vertical;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  textarea:focus, input[type=text]:focus { border-color: var(--neon-blue); }
+
+  /* Step counter */
+  .step-indicator {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+  }
+  .step-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: #1a3a5c;
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .step-dot.done  { background: var(--neon-green); box-shadow: 0 0 6px var(--neon-green); }
+  .step-dot.active{ background: var(--neon-yellow); box-shadow: 0 0 6px var(--neon-yellow); animation: pulseDot 1s infinite; }
+  @keyframes pulseDot {
+    0%,100% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+  }
+
+  /* Section label */
+  .section-label {
+    font-family: 'Orbitron', monospace;
+    font-size: 0.6rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: #4a6a8a;
+    margin-bottom: 8px;
+  }
+
+  /* Comparison columns */
+  .compare-col { flex: 1; min-width: 0; }
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<!-- Header -->
+<div class="relative z-10 text-center py-8 px-4">
+  <div class="section-label mb-2">Cybersecurity Education Lab</div>
+  <h1 class="orbitron text-3xl md:text-4xl font-black neon-blue mb-1">
+    MAN-IN-THE-MIDDLE
+  </h1>
+  <h2 class="orbitron text-lg font-bold neon-red mb-3">ATTACK SIMULATOR</h2>
+  <p class="text-sm text-slate-400 max-w-xl mx-auto">
+    Simulasi interaktif serangan penyadapan email — pelajari bagaimana attacker mencegat dan memodifikasi komunikasi.
+  </p>
+</div>
+
+<!-- Main content -->
+<div class="relative z-10 max-w-6xl mx-auto px-4 pb-12 space-y-6">
+
+  <!-- Alert banner -->
+  <div id="alert-banner" class="panel border-red-800">
+    <div class="flex items-center gap-3 p-4">
+      <span class="text-2xl">⚠️</span>
+      <div>
+        <div class="font-bold neon-red glitch-anim text-sm orbitron">SERANGAN TERDETEKSI</div>
+        <div id="alert-text" class="text-xs text-slate-400 mono mt-0.5"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Control Row -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    <!-- Attacker Toggle -->
+    <div class="panel p-5">
+      <div class="section-label">Mode Attacker</div>
+      <div class="flex items-center justify-between mb-4">
+        <div>
+          <div class="font-semibold text-slate-300 text-sm">Aktifkan Interseptor</div>
+          <div class="text-xs text-slate-500 mono mt-0.5" id="mitm-status-text">INACTIVE — Komunikasi aman</div>
+        </div>
+        <div class="toggle-wrap" onclick="toggleMITM()">
+          <div class="toggle" id="mitm-toggle"></div>
+        </div>
+      </div>
+      <div class="space-y-2">
+        <div class="section-label">Nama Attacker</div>
+        <input type="text" id="attacker-name" value="Hacker Eve" placeholder="Nama attacker...">
+      </div>
+    </div>
+
+    <!-- Email Compose -->
+    <div class="panel p-5 md:col-span-2">
+      <div class="section-label">Tulis Email — Dari Alice ke Bob</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
+        <div>
+          <div class="text-xs text-slate-500 mono mb-1">FROM</div>
+          <input type="text" id="from-field" value="alice@securecorp.id">
+        </div>
+        <div>
+          <div class="text-xs text-slate-500 mono mb-1">TO</div>
+          <input type="text" id="to-field" value="bob@securecorp.id">
+        </div>
+      </div>
+      <div class="text-xs text-slate-500 mono mb-1">SUBJECT</div>
+      <input type="text" id="subject-field" value="Transfer Dana — Konfirmasi" class="mb-2">
+      <div class="text-xs text-slate-500 mono mb-1">PESAN</div>
+      <textarea id="email-body" rows="3" placeholder="Tulis pesan email...">Halo Bob, tolong transfer Rp 5.000.000 ke rekening BCA 1234-5678-9012 atas nama Alice Putri. Terima kasih!</textarea>
+    </div>
+  </div>
+
+  <!-- Tamper Config (hanya muncul jika MITM aktif) -->
+  <div id="tamper-panel" class="panel p-5 border-red-900/50 opacity-40 pointer-events-none transition-all duration-500">
+    <div class="flex items-center gap-2 mb-4">
+      <span class="text-lg">🎭</span>
+      <div class="section-label mb-0">Konfigurasi Serangan — Ubah Isi Email</div>
+      <span class="badge badge-danger ml-auto">ATTACKER PANEL</span>
+    </div>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div>
+        <div class="text-xs text-slate-500 mono mb-1">GANTI NOMOR REKENING</div>
+        <input type="text" id="tamper-account" value="9999-8888-7777 (Rekening Eve)" placeholder="Rekening palsu...">
+      </div>
+      <div>
+        <div class="text-xs text-slate-500 mono mb-1">GANTI NAMA PENERIMA</div>
+        <input type="text" id="tamper-name" value="Eve Hacker" placeholder="Nama palsu...">
+      </div>
+      <div class="sm:col-span-2">
+        <div class="text-xs text-slate-500 mono mb-1">TAMBAH PESAN SISIPAN</div>
+        <input type="text" id="tamper-inject" value="[DIMODIFIKASI OLEH PIHAK KETIGA]" placeholder="Sisipan...">
+      </div>
+    </div>
+  </div>
+
+  <!-- Network Diagram -->
+  <div class="panel p-6">
+    <div class="section-label mb-4">Diagram Jaringan — Visualisasi Komunikasi</div>
+
+    <div id="diagram-area">
+      <!-- MITM Node (top center) -->
+      <div id="mitm-node-wrap" style="opacity:0.2">
+        <div class="node node-mitm inline-block mb-0">
+          <div class="node-icon">🕵️</div>
+          <div class="orbitron text-xs font-bold neon-red" id="mitm-name-display">Hacker Eve</div>
+          <div class="text-xs mono text-slate-500 mt-1">192.168.1.66</div>
+          <div class="badge badge-danger mt-2" id="mitm-badge">STANDBY</div>
+        </div>
+        <div id="mitm-vertical-line"></div>
+      </div>
+
+      <!-- Wire row with nodes -->
+      <div class="flex items-center gap-0 mt-16" id="wire-row">
+        <!-- Alice -->
+        <div class="node node-alice shrink-0">
+          <div class="node-icon">👩</div>
+          <div class="orbitron text-xs font-bold neon-green">ALICE</div>
+          <div class="text-xs mono text-slate-500 mt-1">192.168.1.10</div>
+          <div class="badge badge-secure mt-2">SENDER</div>
+        </div>
+
+        <!-- Wire Left -->
+        <div class="wire-container flex-1">
+          <div class="wire w-full" id="wire-left"></div>
+        </div>
+
+        <!-- Router / Gateway -->
+        <div class="node shrink-0 text-center" style="border-color:#4a6a8a;background:rgba(74,106,138,0.08);">
+          <div class="node-icon">🌐</div>
+          <div class="orbitron text-xs font-bold text-slate-400">ROUTER</div>
+          <div class="text-xs mono text-slate-600 mt-1">10.0.0.1</div>
+          <div class="badge mt-2" style="border-color:#4a6a8a;color:#4a6a8a;background:rgba(74,106,138,0.1)">GATEWAY</div>
+        </div>
+
+        <!-- Wire Right -->
+        <div class="wire-container flex-1">
+          <div class="wire w-full" id="wire-right"></div>
+        </div>
+
+        <!-- Bob -->
+        <div class="node node-bob shrink-0">
+          <div class="node-icon">👨</div>
+          <div class="orbitron text-xs font-bold neon-blue">BOB</div>
+          <div class="text-xs mono text-slate-500 mt-1">192.168.1.20</div>
+          <div class="badge mt-2" style="background:rgba(0,180,255,0.15);border:1px solid var(--neon-blue);color:var(--neon-blue);">RECEIVER</div>
+        </div>
+      </div>
+
+      <!-- Packet animation layer -->
+      <div id="anim-layer">
+        <div id="packet">📧</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Send Button & Steps -->
+  <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+    <div class="flex items-center gap-4">
+      <button class="btn btn-green" id="send-btn" onclick="sendEmail()">
+        ▶ KIRIM EMAIL
+      </button>
+      <button class="btn btn-blue" onclick="resetAll()">↺ RESET</button>
+    </div>
+    <div class="flex items-center gap-3">
+      <span class="text-xs text-slate-500 mono">LANGKAH:</span>
+      <div class="step-indicator">
+        <div class="step-dot" id="dot-1"></div>
+        <div class="step-dot" id="dot-2"></div>
+        <div class="step-dot" id="dot-3"></div>
+        <div class="step-dot" id="dot-4"></div>
+        <div class="step-dot" id="dot-5"></div>
+      </div>
+      <span class="text-xs mono text-slate-500" id="step-label">Siap</span>
+    </div>
+  </div>
+
+  <!-- Result Comparison -->
+  <div id="result-section" style="display:none">
+    <div class="section-label mb-3">Hasil Perbandingan Email</div>
+    <div class="flex flex-col sm:flex-row gap-4">
+      <div class="compare-col">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-secure">DIKIRIM ALICE</span>
+          <span class="text-xs text-slate-500 mono">— Pesan asli</span>
+        </div>
+        <div class="email-card email-original" id="result-original"></div>
+      </div>
+      <div class="compare-col" id="tampered-col" style="display:none">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="badge badge-danger">DITERIMA BOB</span>
+          <span class="text-xs text-slate-500 mono">— Pesan dimodifikasi</span>
+        </div>
+        <div class="email-card email-tampered" id="result-tampered"></div>
+      </div>
+    </div>
+    <div id="result-verdict" class="mt-4 p-4 rounded-lg border text-sm mono"></div>
+  </div>
+
+  <!-- Terminal Log -->
+  <div class="panel p-5">
+    <div class="flex items-center justify-between mb-3">
+      <div class="section-label mb-0">📟 Network Log — Real-time Monitor</div>
+      <button onclick="clearLog()" class="text-xs text-slate-600 hover:text-slate-400 mono transition-colors">[ clear ]</button>
+    </div>
+    <div id="log-terminal">
+      <span class="log-info">[SYSTEM] </span><span class="log-normal">MITM Simulator v2.0 initialized. Semua komunikasi dimonitor.</span><br>
+      <span class="log-normal">[INFO]   Konfigurasikan email lalu tekan KIRIM untuk memulai simulasi.</span><br>
+    </div>
+  </div>
+
+  <!-- Edukasi -->
+  <div class="panel p-6">
+    <div class="section-label mb-4">📚 Cara Kerja Serangan MITM</div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
+      <div class="p-4 rounded-lg" style="background:rgba(0,180,255,0.04);border:1px solid #1a3a5c;">
+        <div class="text-2xl mb-2">1️⃣</div>
+        <div class="font-semibold text-slate-300 text-sm mb-1">ARP Poisoning</div>
+        <div class="text-xs text-slate-500">Attacker mengirim paket ARP palsu sehingga trafik jaringan diarahkan melalui komputer attacker sebelum ke tujuan.</div>
+      </div>
+      <div class="p-4 rounded-lg" style="background:rgba(255,45,85,0.04);border:1px solid #4a1a1a;">
+        <div class="text-2xl mb-2">2️⃣</div>
+        <div class="font-semibold text-slate-300 text-sm mb-1">Packet Interception</div>
+        <div class="text-xs text-slate-500">Semua data yang dikirim Alice melewati attacker. Attacker membaca, memodifikasi, atau memblokir pesan sesuka hati.</div>
+      </div>
+      <div class="p-4 rounded-lg" style="background:rgba(255,214,10,0.04);border:1px solid #4a3a0a;">
+        <div class="text-2xl mb-2">3️⃣</div>
+        <div class="font-semibold text-slate-300 text-sm mb-1">Session Hijacking</div>
+        <div class="text-xs text-slate-500">Attacker dapat mengambil alih sesi login, mencuri cookie, atau memalsukan identitas salah satu pihak yang berkomunikasi.</div>
+      </div>
+    </div>
+    <div class="p-4 rounded-lg" style="background:rgba(0,255,157,0.04);border:1px solid #1a4a2a;">
+      <div class="font-semibold neon-green text-sm mb-2">🛡️ Cara Pencegahan</div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs text-slate-400">
+        <div>✅ Gunakan HTTPS / TLS untuk enkripsi end-to-end</div>
+        <div>✅ Aktifkan HSTS di server web</div>
+        <div>✅ Gunakan VPN di jaringan publik / tidak dipercaya</div>
+        <div>✅ Verifikasi sertifikat SSL secara berkala</div>
+        <div>✅ Aktifkan Dynamic ARP Inspection di switch jaringan</div>
+        <div>✅ Gunakan autentikasi multi-faktor (MFA)</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+// ============================================================
+// State
+// ============================================================
+let mitmActive = false;
+let animating = false;
+
+// ============================================================
+// Toggle MITM
+// ============================================================
+function toggleMITM() {
+  if (animating) return;
+  mitmActive = !mitmActive;
+
+  const toggle = document.getElementById('mitm-toggle');
+  const statusText = document.getElementById('mitm-status-text');
+  const tamperPanel = document.getElementById('tamper-panel');
+  const mitmWrap = document.getElementById('mitm-node-wrap');
+  const badge = document.getElementById('mitm-badge');
+  const wires = document.querySelectorAll('.wire');
+  const alert = document.getElementById('alert-banner');
+
+  if (mitmActive) {
+    toggle.classList.add('active');
+    statusText.textContent = 'ACTIVE — Interseptor berjalan';
+    statusText.style.color = 'var(--neon-red)';
+    tamperPanel.classList.remove('opacity-40', 'pointer-events-none');
+    mitmWrap.style.opacity = '1';
+    badge.textContent = 'INTERCEPTING';
+    badge.className = 'badge badge-danger mt-2 glitch-anim';
+    wires.forEach(w => {
+      w.style.background = 'linear-gradient(90deg, var(--neon-red) 0%, rgba(255,45,85,0.2) 100%)';
+    });
+    updateMitmName();
+    log('warn', `[ALERT]  Interseptor diaktifkan! Attacker "${getMitmName()}" siap mencegat komunikasi.`);
+    log('danger', '[ATTACK] ARP Poisoning dimulai — Tabel ARP jaringan sedang diracuni...');
+    log('danger', '[ATTACK] Trafik berhasil dialihkan melalui host attacker.');
+  } else {
+    toggle.classList.remove('active');
+    statusText.textContent = 'INACTIVE — Komunikasi aman';
+    statusText.style.color = '';
+    tamperPanel.classList.add('opacity-40', 'pointer-events-none');
+    mitmWrap.style.opacity = '0.2';
+    badge.textContent = 'STANDBY';
+    badge.classList.remove('glitch-anim');
+    badge.className = 'badge badge-danger mt-2';
+    wires.forEach(w => {
+      w.style.background = 'linear-gradient(90deg, var(--neon-blue) 0%, rgba(0,180,255,0.2) 100%)';
+    });
+    alert.classList.remove('show');
+    log('safe', `[SYSTEM] Interseptor dinonaktifkan. Jaringan kembali normal.`);
+  }
+}
+
+function getMitmName() {
+  return document.getElementById('attacker-name').value || 'Hacker Eve';
+}
+
+function updateMitmName() {
+  document.getElementById('mitm-name-display').textContent = getMitmName();
+}
+
+document.getElementById('attacker-name').addEventListener('input', updateMitmName);
+
+// ============================================================
+// Log
+// ============================================================
+function log(type, msg) {
+  const term = document.getElementById('log-terminal');
+  const now = new Date();
+  const ts = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}:${String(now.getSeconds()).padStart(2,'0')}`;
+  const el = document.createElement('div');
+  el.innerHTML = `<span class="log-normal">[${ts}] </span><span class="log-${type}">${msg}</span>`;
+  term.appendChild(el);
+  term.scrollTop = term.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('log-terminal').innerHTML = '<span class="log-normal">[SYSTEM] Log dibersihkan.</span><br>';
+}
+
+// ============================================================
+// Step indicator
+// ============================================================
+function setStep(n, label) {
+  for (let i = 1; i <= 5; i++) {
+    const dot = document.getElementById(`dot-${i}`);
+    dot.classList.remove('done', 'active');
+    if (i < n) dot.classList.add('done');
+    else if (i === n) dot.classList.add('active');
+  }
+  document.getElementById('step-label').textContent = label;
+}
+
+// ============================================================
+// Animate packet across the diagram
+// ============================================================
+function animatePacket(fromX, toX, y, color, emoji, duration) {
+  return new Promise(resolve => {
+    const pkt = document.getElementById('packet');
+    pkt.style.display = 'flex';
+    pkt.style.background = color;
+    pkt.style.boxShadow = `0 0 18px ${color}`;
+    pkt.style.left = fromX + 'px';
+    pkt.style.top = y + 'px';
+    pkt.textContent = emoji;
+
+    const start = performance.now();
+    function step(ts) {
+      const prog = Math.min((ts - start) / duration, 1);
+      const ease = prog < 0.5 ? 2*prog*prog : -1+(4-2*prog)*prog;
+      pkt.style.left = (fromX + (toX - fromX) * ease) + 'px';
+      if (prog < 1) requestAnimationFrame(step);
+      else { pkt.style.display = 'none'; resolve(); }
+    }
+    requestAnimationFrame(step);
+  });
+}
+
+// ============================================================
+// Get bounding boxes relative to anim-layer
+// ============================================================
+function getRelPos(el) {
+  const layer = document.getElementById('anim-layer').getBoundingClientRect();
+  const rect = el.getBoundingClientRect();
+  return {
+    x: rect.left - layer.left + rect.width/2,
+    y: rect.top  - layer.top  + rect.height/2,
+    top: rect.top - layer.top,
+    left: rect.left - layer.left,
+    w: rect.width,
+    h: rect.height
+  };
+}
+
+// ============================================================
+// Main send simulation
+// ============================================================
+async function sendEmail() {
+  if (animating) return;
+  animating = true;
+  document.getElementById('send-btn').disabled = true;
+  document.getElementById('result-section').style.display = 'none';
+
+  const from    = document.getElementById('from-field').value;
+  const to      = document.getElementById('to-field').value;
+  const subject = document.getElementById('subject-field').value;
+  const body    = document.getElementById('email-body').value;
+
+  const originalEmail = `FROM: ${from}\nTO:   ${to}\nSUBJ: ${subject}\n\n${body}`;
+
+  log('info', `[TX]     Paket email disiapkan dari ${from}`);
+  setStep(1, 'Menyiapkan paket');
+  await sleep(500);
+
+  // ---- Step 2: Alice → Router ----
+  setStep(2, 'Alice → Router');
+  log('safe', `[TX]     Mengirim email ke ${to} melalui gateway...`);
+
+  const aliceEl  = document.querySelector('.node-alice');
+  const routerEl = document.querySelectorAll('.node')[1]; // router is middle
+  const mitmEl   = document.querySelector('.node-mitm');
+  const bobEl    = document.querySelector('.node-bob');
+
+  const layerRect = document.getElementById('anim-layer').getBoundingClientRect();
+
+  // Helper: center of element relative to anim-layer
+  function center(el) {
+    const r = el.getBoundingClientRect();
+    return {
+      x: r.left - layerRect.left + r.width/2 - 18,
+      y: r.top  - layerRect.top  + r.height/2 - 18
+    };
+  }
+
+  const cAlice  = center(aliceEl);
+  const cRouter = center(document.querySelector('.node:nth-child(3)') || aliceEl); // fallback
+  const cBob    = center(bobEl);
+  const cMitm   = center(document.querySelector('.node-mitm'));
+
+  // Find actual router node
+  const allNodes = document.querySelectorAll('.node');
+  let routerNode = allNodes[1];
+  const cR = center(routerNode);
+
+  await animatePacket(cAlice.x, cR.x, cAlice.y, '#00ff9d', '📧', 900);
+  await sleep(200);
+
+  if (mitmActive) {
+    // ---- Intercept! ----
+    setStep(3, 'Paket DICEGAT!');
+    log('danger', `[MITM]   🚨 PAKET DICEGAT oleh ${getMitmName()}!`);
+    log('danger', `[MITM]   Membaca konten email: "${subject}"`);
+    await sleep(300);
+
+    // Packet flies up to MITM node
+    await animatePacket(cR.x, cMitm.x, cR.y, '#ff2d55', '📧', 700);
+
+    // Show alert
+    const alertBanner = document.getElementById('alert-banner');
+    const alertText   = document.getElementById('alert-text');
+    alertText.textContent = `${getMitmName()} berhasil mencegat email dari ${from} ke ${to} — sedang memodifikasi konten...`;
+    alertBanner.classList.add('show');
+
+    await sleep(800);
+
+    // Tamper the email
+    const acc    = document.getElementById('tamper-account').value;
+    const name   = document.getElementById('tamper-name').value;
+    const inject = document.getElementById('tamper-inject').value;
+
+    let tamperedBody = body;
+    // Replace account number pattern
+    tamperedBody = tamperedBody.replace(/\d{4}[-\s]?\d{4}[-\s]?\d{4}/g, acc);
+    // Replace name after 'nama'
+    tamperedBody = tamperedBody.replace(/atas nama [\w\s]+/i, `atas nama ${name}`);
+    // Append injection
+    if (inject) tamperedBody += `\n\n${inject}`;
+
+    const tamperedEmail = `FROM: ${from}\nTO:   ${to}\nSUBJ: ${subject}\n\n${tamperedBody}`;
+
+    log('danger', `[MITM]   ✏️  Memodifikasi nomor rekening → ${acc}`);
+    log('danger', `[MITM]   ✏️  Mengganti nama penerima → ${name}`);
+    if (inject) log('danger', `[MITM]   ✏️  Menyisipkan pesan: "${inject}"`);
+    log('warn',   `[MITM]   Paket telah dimodifikasi. Meneruskan ke Bob...`);
+
+    setStep(4, 'Email dimodifikasi');
+    await sleep(600);
+
+    // Tampered packet flies down to router then to Bob
+    await animatePacket(cMitm.x, cR.x, cMitm.y, '#ff2d55', '📨', 700);
+    await sleep(100);
+    await animatePacket(cR.x, cBob.x, cR.y, '#ff2d55', '📨', 900);
+
+    setStep(5, 'Bob menerima email palsu');
+    log('danger', `[RX]     Bob menerima email — ISI SUDAH DIMODIFIKASI! Bob tidak menyadari serangan.`);
+    await sleep(300);
+
+    // Show result
+    showResult(originalEmail, tamperedEmail, true);
+  } else {
+    // ---- Safe path ----
+    setStep(3, 'Melewati Router');
+    log('safe', `[TX]     Paket melewati router tanpa gangguan.`);
+    await sleep(400);
+
+    await animatePacket(cR.x, cBob.x, cR.y, '#00ff9d', '📧', 900);
+
+    setStep(5, 'Bob menerima email asli');
+    log('safe', `[RX]     Bob menerima email asli dari Alice. Komunikasi aman ✓`);
+    await sleep(300);
+
+    showResult(originalEmail, null, false);
+  }
+
+  animating = false;
+  document.getElementById('send-btn').disabled = false;
+}
+
+// ============================================================
+// Show result panel
+// ============================================================
+function showResult(original, tampered, wasAttacked) {
+  const section = document.getElementById('result-section');
+  section.style.display = 'block';
+
+  document.getElementById('result-original').textContent = original;
+
+  const tampCol = document.getElementById('tampered-col');
+  const verdict = document.getElementById('result-verdict');
+
+  if (wasAttacked) {
+    tampCol.style.display = 'block';
+    document.getElementById('result-tampered').textContent = tampered;
+
+    // Highlight differences
+    verdict.style.border = '1px solid var(--neon-red)';
+    verdict.style.background = 'rgba(255,45,85,0.05)';
+    verdict.style.color = 'var(--neon-red)';
+    verdict.innerHTML = `
+      ⚠️ SERANGAN BERHASIL — Bob menerima email yang BERBEDA dari yang dikirim Alice.<br>
+      <span style="color:#6a8fa8;font-size:0.75rem;">Dalam skenario nyata: Bob akan mentransfer uang ke rekening Eve, bukan Alice. Tanpa enkripsi end-to-end, serangan ini tidak terdeteksi.</span>
+    `;
+  } else {
+    tampCol.style.display = 'none';
+    verdict.style.border = '1px solid var(--neon-green)';
+    verdict.style.background = 'rgba(0,255,157,0.04)';
+    verdict.style.color = 'var(--neon-green)';
+    verdict.innerHTML = `
+      ✅ KOMUNIKASI AMAN — Email diterima Bob identik dengan yang dikirim Alice. Tidak ada intersepsi.<br>
+      <span style="color:#6a8fa8;font-size:0.75rem;">Aktifkan mode attacker untuk mensimulasikan serangan MITM.</span>
+    `;
+  }
+
+  section.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ============================================================
+// Reset
+// ============================================================
+function resetAll() {
+  if (animating) return;
+  document.getElementById('result-section').style.display = 'none';
+  document.getElementById('alert-banner').classList.remove('show');
+  document.getElementById('packet').style.display = 'none';
+  for (let i = 1; i <= 5; i++) {
+    document.getElementById(`dot-${i}`).className = 'step-dot';
+  }
+  document.getElementById('step-label').textContent = 'Siap';
+  log('info', '[SYSTEM] Simulasi direset. Siap untuk percobaan baru.');
+}
+
+// ============================================================
+// Utils
+// ============================================================
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Init log
+log('safe', '[SYSTEM] Jaringan virtual berhasil diinisialisasi.');
+log('info',  '[INFO]   Alice (192.168.1.10) dan Bob (192.168.1.20) terhubung.');
+</script>
+</body>
+</html>
