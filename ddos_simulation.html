@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DDoS Attack Simulator — CyberSec Lab</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:        #03070d;
+  --panel:     #080f18;
+  --border:    #0f2035;
+  --orange:    #ff6b00;
+  --orange-d:  #cc4400;
+  --yellow:    #ffd700;
+  --red:       #ff2040;
+  --green:     #00e87a;
+  --blue:      #00aaff;
+  --purple:    #a855f7;
+  --text:      #b0c4d8;
+  --text-dim:  #4a6a8a;
+}
+
+*{box-sizing:border-box;margin:0;padding:0;}
+
+body{
+  background:var(--bg);
+  font-family:'Exo 2',sans-serif;
+  color:var(--text);
+  overflow-x:hidden;
+}
+
+/* ── Hex grid background ── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:
+    repeating-linear-gradient(60deg,transparent,transparent 30px,rgba(255,107,0,.03) 30px,rgba(255,107,0,.03) 31px),
+    repeating-linear-gradient(-60deg,transparent,transparent 30px,rgba(255,107,0,.03) 30px,rgba(255,107,0,.03) 31px),
+    repeating-linear-gradient(0deg,transparent,transparent 30px,rgba(255,107,0,.02) 30px,rgba(255,107,0,.02) 31px);
+  pointer-events:none;z-index:0;
+}
+
+body::after{
+  content:'';
+  position:fixed;inset:0;
+  background:radial-gradient(ellipse at 50% -10%,rgba(255,107,0,.08) 0%,transparent 55%),
+             radial-gradient(ellipse at 80% 80%,rgba(0,170,255,.05) 0%,transparent 40%);
+  pointer-events:none;z-index:0;
+}
+
+.mono{font-family:'Share Tech Mono',monospace;}
+.orb{font-family:'Orbitron',monospace;}
+
+/* ── Panels ── */
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:10px;
+  position:relative;
+  overflow:hidden;
+}
+.panel::after{
+  content:'';
+  position:absolute;top:0;left:0;right:0;
+  height:1px;
+  background:linear-gradient(90deg,transparent,var(--orange),transparent);
+  opacity:.5;
+}
+
+/* ── Neon helpers ── */
+.no{color:var(--orange);text-shadow:0 0 10px var(--orange);}
+.nr{color:var(--red);   text-shadow:0 0 10px var(--red);}
+.ng{color:var(--green); text-shadow:0 0 10px var(--green);}
+.nb{color:var(--blue);  text-shadow:0 0 10px var(--blue);}
+.ny{color:var(--yellow);text-shadow:0 0 8px var(--yellow);}
+.np{color:var(--purple);text-shadow:0 0 8px var(--purple);}
+
+/* ── Badges ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:4px;font-size:.62rem;font-family:'Orbitron',monospace;font-weight:700;letter-spacing:.05em;}
+.b-red   {background:rgba(255,32,64,.15);border:1px solid var(--red);   color:var(--red);}
+.b-orange{background:rgba(255,107,0,.15);border:1px solid var(--orange);color:var(--orange);}
+.b-green {background:rgba(0,232,122,.12);border:1px solid var(--green); color:var(--green);}
+.b-blue  {background:rgba(0,170,255,.12);border:1px solid var(--blue);  color:var(--blue);}
+.b-purple{background:rgba(168,85,247,.12);border:1px solid var(--purple);color:var(--purple);}
+.b-yellow{background:rgba(255,215,0,.12);border:1px solid var(--yellow);color:var(--yellow);}
+
+/* ── Buttons ── */
+.btn{
+  padding:10px 22px;border-radius:6px;
+  font-family:'Orbitron',monospace;font-size:.68rem;font-weight:700;
+  letter-spacing:.08em;cursor:pointer;border:2px solid;
+  transition:all .2s;text-transform:uppercase;
+}
+.btn-orange{background:rgba(255,107,0,.1);border-color:var(--orange);color:var(--orange);}
+.btn-orange:hover:not(:disabled){background:rgba(255,107,0,.25);box-shadow:0 0 24px rgba(255,107,0,.5);}
+.btn-red{background:rgba(255,32,64,.1);border-color:var(--red);color:var(--red);}
+.btn-red:hover:not(:disabled){background:rgba(255,32,64,.25);box-shadow:0 0 24px rgba(255,32,64,.5);}
+.btn-green{background:rgba(0,232,122,.1);border-color:var(--green);color:var(--green);}
+.btn-green:hover:not(:disabled){background:rgba(0,232,122,.2);box-shadow:0 0 20px rgba(0,232,122,.4);}
+.btn-blue{background:rgba(0,170,255,.1);border-color:var(--blue);color:var(--blue);}
+.btn-blue:hover:not(:disabled){background:rgba(0,170,255,.2);}
+.btn:disabled{opacity:.3;cursor:not-allowed;}
+
+/* ── Canvas ── */
+#ddos-canvas{display:block;width:100%;border-radius:8px;background:#030810;}
+
+/* ── Meters ── */
+.meter-bar{
+  height:10px;border-radius:5px;
+  background:#0a1520;
+  overflow:hidden;
+  border:1px solid #0f2035;
+}
+.meter-fill{
+  height:100%;border-radius:5px;
+  transition:width .3s ease;
+}
+
+/* ── Terminal ── */
+#log-box{
+  height:160px;overflow-y:auto;
+  padding:10px 12px;
+  background:#02060c;
+  border-radius:6px;
+  border:1px solid #0a1e2e;
+  font-family:'Share Tech Mono',monospace;
+  font-size:.73rem;line-height:1.75;
+}
+#log-box::-webkit-scrollbar{width:4px;}
+#log-box::-webkit-scrollbar-thumb{background:var(--orange);border-radius:2px;}
+
+.l-ok{color:var(--green);}
+.l-err{color:var(--red);}
+.l-warn{color:var(--yellow);}
+.l-info{color:var(--blue);}
+.l-bot{color:var(--orange);}
+.l-dim{color:#3a5a78;}
+
+/* ── Stat cards ── */
+.stat-card{
+  background:#050d18;
+  border:1px solid #0f2035;
+  border-radius:8px;
+  padding:12px 14px;
+  text-align:center;
+}
+
+/* ── Toggle ── */
+.toggle-wrap{display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;}
+.tog{width:44px;height:22px;background:#0a1520;border-radius:11px;border:1px solid #1a3a5c;position:relative;transition:.3s;}
+.tog::after{content:'';width:16px;height:16px;background:#2a4a6a;border-radius:50%;position:absolute;top:2px;left:2px;transition:.3s;}
+.tog.on{background:rgba(255,107,0,.2);border-color:var(--orange);}
+.tog.on::after{left:24px;background:var(--orange);box-shadow:0 0 8px var(--orange);}
+
+/* ── Range input ── */
+input[type=range]{
+  -webkit-appearance:none;width:100%;height:4px;
+  background:#0a1520;border-radius:2px;outline:none;
+}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;
+  border-radius:50%;background:var(--orange);
+  box-shadow:0 0 8px var(--orange);cursor:pointer;
+}
+
+/* ── Glitch ── */
+@keyframes glitch{
+  0%,100%{text-shadow:0 0 10px var(--red);}
+  25%{text-shadow:-2px 0 var(--blue),2px 0 var(--yellow),0 0 10px var(--red);}
+  75%{text-shadow:2px 0 var(--blue),-2px 0 var(--yellow),0 0 10px var(--red);}
+}
+.glitch{animation:glitch .7s infinite;}
+
+/* ── Scanline ── */
+@keyframes scan{0%{top:-4%;}100%{top:104%;}}
+.scanline{
+  position:fixed;left:0;right:0;height:2px;
+  background:linear-gradient(90deg,transparent,rgba(255,107,0,.07),transparent);
+  pointer-events:none;z-index:999;
+  animation:scan 7s linear infinite;
+}
+
+/* ── Section nav tabs ── */
+.tab-btn{
+  padding:8px 18px;border-radius:6px;
+  font-family:'Orbitron',monospace;font-size:.65rem;font-weight:700;
+  letter-spacing:.06em;cursor:pointer;border:1px solid var(--border);
+  color:var(--text-dim);background:transparent;transition:.2s;
+}
+.tab-btn.active{border-color:var(--orange);color:var(--orange);background:rgba(255,107,0,.08);}
+
+/* ── Info boxes ── */
+.info-step{
+  display:flex;gap:14px;padding:14px 16px;
+  background:#050d18;border-radius:8px;
+  border:1px solid #0f2035;
+  border-left:3px solid var(--orange);
+}
+.info-step-num{
+  width:30px;height:30px;border-radius:50%;
+  background:rgba(255,107,0,.15);border:1px solid var(--orange);
+  display:flex;align-items:center;justify-content:center;
+  font-family:'Orbitron',monospace;font-size:.7rem;font-weight:900;
+  color:var(--orange);flex-shrink:0;margin-top:2px;
+}
+
+/* ── Pulse ring ── */
+@keyframes pulseRing{
+  0%{transform:scale(1);opacity:.8;}
+  100%{transform:scale(2.5);opacity:0;}
+}
+
+/* ── Section ── */
+.section-label{
+  font-family:'Orbitron',monospace;font-size:.58rem;
+  letter-spacing:.18em;color:var(--text-dim);text-transform:uppercase;
+  margin-bottom:6px;
+}
+
+/* ── Bot grid item ── */
+.bot-item{
+  width:14px;height:14px;border-radius:2px;
+  transition:background .2s,box-shadow .2s;
+  cursor:default;
+}
+
+/* ── Animate count up ── */
+@keyframes countUp{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+.count-anim{animation:countUp .3s ease;}
+
+/* ── Server shake ── */
+@keyframes shake{
+  0%,100%{transform:translateX(0);}
+  20%{transform:translateX(-4px);}
+  40%{transform:translateX(4px);}
+  60%{transform:translateX(-3px);}
+  80%{transform:translateX(3px);}
+}
+.shake{animation:shake .15s ease infinite;}
+
+/* ── Tooltip ── */
+.tip{position:relative;}
+.tip:hover .tip-text{display:block;}
+.tip-text{
+  display:none;position:absolute;bottom:110%;left:50%;transform:translateX(-50%);
+  background:#0a1520;border:1px solid var(--orange);border-radius:4px;
+  padding:4px 8px;font-size:.7rem;white-space:nowrap;z-index:100;
+  color:var(--text);font-family:'Share Tech Mono',monospace;
+}
+
+/* ── Overflow scroll for wide content ── */
+.overflow-x-auto::-webkit-scrollbar{height:4px;}
+.overflow-x-auto::-webkit-scrollbar-thumb{background:var(--orange);border-radius:2px;}
+</style>
+</head>
+<body>
+<div class="scanline"></div>
+
+<!-- ═══════════════════════════════════════
+     HEADER
+════════════════════════════════════════ -->
+<div class="relative z-10 text-center py-10 px-4">
+  <div class="section-label mb-2">Cybersecurity Education Lab v2.0</div>
+  <h1 class="orb text-4xl md:text-5xl font-black no mb-1">DDoS ATTACK</h1>
+  <h2 class="orb text-xl font-bold text-slate-400 mb-3">SIMULATOR & BOTNET VISUALIZER</h2>
+  <p class="text-sm text-slate-500 max-w-2xl mx-auto leading-relaxed">
+    Simulasi interaktif serangan Distributed Denial-of-Service — pelajari cara botnet dibangun, komputer diinfeksi, dan bagaimana ribuan zombie bot membanjiri server target hingga lumpuh.
+  </p>
+  <div class="flex flex-wrap gap-2 justify-center mt-4">
+    <span class="badge b-orange">⚠️ EDUKASI ONLY</span>
+    <span class="badge b-blue">🔬 SIMULASI VIRTUAL</span>
+    <span class="badge b-green">🛡️ NO REAL HARM</span>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     NAV TABS
+════════════════════════════════════════ -->
+<div class="relative z-10 max-w-6xl mx-auto px-4 mb-6">
+  <div class="flex gap-2 overflow-x-auto pb-1">
+    <button class="tab-btn active" onclick="showTab('sim'   ,this)">⚡ Simulasi Serangan</button>
+    <button class="tab-btn"        onclick="showTab('infect',this)">🦠 Cara Infeksi Bot</button>
+    <button class="tab-btn"        onclick="showTab('types' ,this)">📊 Jenis Serangan</button>
+    <button class="tab-btn"        onclick="showTab('defend',this)">🛡️ Pertahanan</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════
+     TAB: SIMULASI
+════════════════════════════════════════ -->
+<div id="tab-sim" class="tab-content relative z-10 max-w-6xl mx-auto px-4 pb-12 space-y-5">
+
+  <!-- Config Row -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+
+    <!-- Attack Config -->
+    <div class="panel p-5 space-y-4">
+      <div class="section-label">Konfigurasi Serangan</div>
+
+      <div>
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-slate-400">Target Server</span>
+        </div>
+        <select id="target-type" class="w-full bg-slate-900 border border-slate-700 rounded-md px-3 py-2 text-sm text-slate-300 outline-none">
+          <option value="web">🌐 Web Server (HTTP Flood)</option>
+          <option value="dns">🔗 DNS Server (DNS Amplification)</option>
+          <option value="game">🎮 Game Server (UDP Flood)</option>
+          <option value="bank">🏦 Banking Server (SYN Flood)</option>
+        </select>
+      </div>
+
+      <div>
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-slate-400">Jumlah Bot Aktif</span>
+          <span class="text-xs mono no" id="bot-count-label">500</span>
+        </div>
+        <input type="range" id="bot-count" min="50" max="2000" value="500" step="50"
+               oninput="document.getElementById('bot-count-label').textContent=this.value;updateBotGrid();">
+      </div>
+
+      <div>
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-slate-400">Intensitas Serangan</span>
+          <span class="text-xs mono no" id="intensity-label">5</span>
+        </div>
+        <input type="range" id="intensity" min="1" max="10" value="5"
+               oninput="document.getElementById('intensity-label').textContent=this.value;">
+      </div>
+
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-slate-400">Spoofed IP</span>
+        <div class="toggle-wrap" onclick="toggleFeature('spoof')">
+          <div class="tog on" id="tog-spoof"></div>
+          <span class="text-xs mono no" id="lbl-spoof">ON</span>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-slate-400">Enkripsi C&C</span>
+        <div class="toggle-wrap" onclick="toggleFeature('enc')">
+          <div class="tog on" id="tog-enc"></div>
+          <span class="text-xs mono no" id="lbl-enc">ON</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bot Grid -->
+    <div class="panel p-5">
+      <div class="section-label">Botnet Army — Komputer Terinfeksi</div>
+      <div id="bot-grid" class="grid gap-[3px] mb-3" style="grid-template-columns:repeat(25,1fr);">
+        <!-- filled by JS -->
+      </div>
+      <div class="flex gap-3 text-xs mono mt-2">
+        <span><span style="display:inline-block;width:10px;height:10px;background:#1a3a5c;border-radius:2px;vertical-align:middle;margin-right:4px;"></span>Idle</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--orange);border-radius:2px;vertical-align:middle;margin-right:4px;box-shadow:0 0 6px var(--orange);"></span>Attacking</span>
+        <span><span style="display:inline-block;width:10px;height:10px;background:var(--red);border-radius:2px;vertical-align:middle;margin-right:4px;box-shadow:0 0 6px var(--red);"></span>Blocked</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="panel p-5 space-y-3">
+      <div class="section-label">Live Statistics</div>
+      <div class="grid grid-cols-2 gap-2">
+        <div class="stat-card">
+          <div class="section-label mb-1">REQ/SEC</div>
+          <div class="orb text-xl no" id="stat-rps">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="section-label mb-1">GBPS</div>
+          <div class="orb text-xl no" id="stat-gbps">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="section-label mb-1">BOTS AKTIF</div>
+          <div class="orb text-xl ny" id="stat-bots">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="section-label mb-1">PKT DROPPED</div>
+          <div class="orb text-xl nr" id="stat-drop">0%</div>
+        </div>
+      </div>
+
+      <!-- Server health -->
+      <div>
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-slate-400">Server Health</span>
+          <span class="text-xs mono ng" id="health-pct">100%</span>
+        </div>
+        <div class="meter-bar">
+          <div class="meter-fill" id="health-bar" style="width:100%;background:var(--green);"></div>
+        </div>
+      </div>
+
+      <!-- Bandwidth -->
+      <div>
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-slate-400">Bandwidth Saturasi</span>
+          <span class="text-xs mono no" id="bw-pct">0%</span>
+        </div>
+        <div class="meter-bar">
+          <div class="meter-fill" id="bw-bar" style="width:0%;background:var(--orange);"></div>
+        </div>
+      </div>
+
+      <!-- CPU -->
+      <div>
+        <div class="flex justify-between mb-1">
+          <span class="text-xs text-slate-400">CPU Target</span>
+          <span class="text-xs mono nr" id="cpu-pct">0%</span>
+        </div>
+        <div class="meter-bar">
+          <div class="meter-fill" id="cpu-bar" style="width:0%;background:var(--red);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas -->
+  <div class="panel p-4">
+    <div class="section-label mb-3">Visualisasi Serangan Real-time</div>
+    <canvas id="ddos-canvas" height="280"></canvas>
+  </div>
+
+  <!-- Controls -->
+  <div class="flex flex-wrap gap-3 items-center justify-between">
+    <div class="flex gap-3 flex-wrap">
+      <button class="btn btn-orange" id="btn-start" onclick="startAttack()">▶ MULAI SERANGAN</button>
+      <button class="btn btn-red"    id="btn-stop"  onclick="stopAttack()" disabled>⏹ STOP</button>
+      <button class="btn btn-blue"               onclick="resetSim()">↺ RESET</button>
+    </div>
+    <div id="attack-status" class="badge b-blue">⬛ IDLE</div>
+  </div>
+
+  <!-- Log -->
+  <div class="panel p-4">
+    <div class="flex items-center justify-between mb-2">
+      <div class="section-label mb-0">📟 Attack Log — Network Monitor</div>
+      <button onclick="clearLog()" class="text-xs text-slate-600 hover:text-slate-400 mono transition-colors">[ clear ]</button>
+    </div>
+    <div id="log-box">
+      <span class="l-info">[SYSTEM]</span> <span class="l-dim">DDoS Simulator initialized. Botnet command-and-control ready.</span><br>
+      <span class="l-dim">[INFO]   Pilih target dan konfigurasi, lalu tekan MULAI SERANGAN.</span><br>
+    </div>
+  </div>
+
+</div><!-- /tab-sim -->
+
+<!-- ═══════════════════════════════════════
+     TAB: CARA INFEKSI
+════════════════════════════════════════ -->
+<div id="tab-infect" class="tab-content relative z-10 max-w-6xl mx-auto px-4 pb-12 space-y-5" style="display:none">
+
+  <div class="panel p-6">
+    <div class="orb text-lg no mb-1">Bagaimana Botnet Dibangun?</div>
+    <p class="text-sm text-slate-400 mb-6 leading-relaxed">
+      Botnet adalah jaringan komputer yang terinfeksi malware dan dikendalikan diam-diam oleh attacker (disebut <span class="no mono">botmaster</span>). 
+      Komputer yang terinfeksi disebut <span class="no mono">zombie</span> atau <span class="no mono">bot</span>. Berikut tahapan lengkap bagaimana botnet dibangun:
+    </p>
+
+    <div class="space-y-4">
+
+      <div class="info-step">
+        <div class="info-step-num">1</div>
+        <div>
+          <div class="font-bold text-slate-200 text-sm mb-1">🎣 Penyebaran Malware (Initial Infection)</div>
+          <p class="text-xs text-slate-400 leading-relaxed mb-2">
+            Attacker menyebarkan malware melalui berbagai vektor serangan untuk menginfeksi komputer korban:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div class="flex gap-2 items-start p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <span class="text-orange-400 mt-0.5">📧</span>
+              <div><span class="text-slate-300 font-semibold">Phishing Email</span><br><span class="text-slate-500">Email palsu berisi lampiran berbahaya (.exe, .docm) atau link ke halaman tiruan yang mendownload malware secara otomatis.</span></div>
+            </div>
+            <div class="flex gap-2 items-start p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <span class="text-orange-400 mt-0.5">🌐</span>
+              <div><span class="text-slate-300 font-semibold">Drive-by Download</span><br><span class="text-slate-500">Situs web berbahaya yang mengeksploitasi kerentanan browser (unpatched Flash, Java, PDF reader) untuk install malware tanpa klik pengguna.</span></div>
+            </div>
+            <div class="flex gap-2 items-start p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <span class="text-orange-400 mt-0.5">💾</span>
+              <div><span class="text-slate-300 font-semibold">Infected Software / Crack</span><br><span class="text-slate-500">Software bajakan, game crack, atau keygen yang dibundel dengan trojan. Pengguna menginstal sendiri tanpa sadar.</span></div>
+            </div>
+            <div class="flex gap-2 items-start p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <span class="text-orange-400 mt-0.5">🔌</span>
+              <div><span class="text-slate-300 font-semibold">USB / Removable Media</span><br><span class="text-slate-500">Flashdisk yang terinfeksi menyebar via autorun atau file menyamar sebagai folder biasa. Sangat efektif di lingkungan kantor.</span></div>
+            </div>
+            <div class="flex gap-2 items-start p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <span class="text-orange-400 mt-0.5">🔓</span>
+              <div><span class="text-slate-300 font-semibold">Exploit Kerentanan RCE</span><br><span class="text-slate-500">Memanfaatkan celah keamanan di layanan yang terekspos internet (SMB, RDP, IoT firmware) untuk eksekusi kode dari jarak jauh.</span></div>
+            </div>
+            <div class="flex gap-2 items-start p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <span class="text-orange-400 mt-0.5">📱</span>
+              <div><span class="text-slate-300 font-semibold">Fake App / APK</span><br><span class="text-slate-500">Aplikasi palsu di luar Play Store atau sideloaded APK yang meminta permission berlebihan untuk akses penuh ke perangkat.</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-step" style="border-left-color:var(--red)">
+        <div class="info-step-num" style="color:var(--red);background:rgba(255,32,64,.1);border-color:var(--red);">2</div>
+        <div>
+          <div class="font-bold text-slate-200 text-sm mb-1">🪱 Instalasi & Persistensi (Rootkit/Trojan)</div>
+          <p class="text-xs text-slate-400 leading-relaxed mb-2">
+            Setelah berhasil masuk, malware melakukan serangkaian tindakan untuk bertahan di sistem:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="nr font-semibold mb-1">Registry Persistence</div>
+              <div class="text-slate-500 mono text-[.68rem]">HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Run</div>
+              <div class="text-slate-500 mt-1">Otomatis dijalankan setiap Windows startup.</div>
+            </div>
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="nr font-semibold mb-1">Scheduled Task</div>
+              <div class="text-slate-500">Membuat task terjadwal yang eksekusi tiap jam, tersembunyi dari Task Manager biasa.</div>
+            </div>
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="nr font-semibold mb-1">Kernel Rootkit</div>
+              <div class="text-slate-500">Bersembunyi di level kernel OS, tidak terlihat di file explorer atau antivirus biasa.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-step" style="border-left-color:var(--purple)">
+        <div class="info-step-num" style="color:var(--purple);background:rgba(168,85,247,.1);border-color:var(--purple);">3</div>
+        <div>
+          <div class="font-bold text-slate-200 text-sm mb-1">📡 Koneksi ke C&C Server (Command & Control)</div>
+          <p class="text-xs text-slate-400 leading-relaxed mb-2">
+            Bot yang terinfeksi "menelepon ke rumah" — menghubungi server C&C milik attacker untuk menerima instruksi:
+          </p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="np font-semibold mb-1">IRC / HTTP Botnet</div>
+              <div class="text-slate-500">Generasi lama. Bot join channel IRC rahasia dan menunggu perintah. Mudah diblokir jika C&C diketahui.</div>
+            </div>
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="np font-semibold mb-1">P2P Botnet</div>
+              <div class="text-slate-500">Tidak ada server pusat. Bot berkomunikasi peer-to-peer sehingga sangat sulit di-takedown oleh pihak berwenang.</div>
+            </div>
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="np font-semibold mb-1">Domain Generation Algorithm (DGA)</div>
+              <div class="text-slate-500">Bot menghasilkan ribuan domain acak per hari. Attacker hanya perlu mendaftarkan satu — sangat sulit diblokir.</div>
+            </div>
+            <div class="p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+              <div class="np font-semibold mb-1">Fast-Flux DNS</div>
+              <div class="text-slate-500">IP server C&C berubah setiap beberapa menit menggunakan DNS TTL sangat pendek — menyulitkan pelacakan.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-step" style="border-left-color:var(--yellow)">
+        <div class="info-step-num" style="color:var(--yellow);background:rgba(255,215,0,.1);border-color:var(--yellow);">4</div>
+        <div>
+          <div class="font-bold text-slate-200 text-sm mb-1">🤖 Bot Siap Dikendalikan (Zombie Mode)</div>
+          <p class="text-xs text-slate-400 leading-relaxed mb-2">
+            Komputer korban kini menjadi <span class="ny mono">zombie</span> — berjalan normal dari sisi pengguna, namun diam-diam menjalankan perintah attacker:
+          </p>
+          <div class="text-xs space-y-1 text-slate-400">
+            <div class="flex gap-2"><span class="ny">→</span> Bot melaporkan spesifikasi (bandwidth, CPU, OS) ke botmaster</div>
+            <div class="flex gap-2"><span class="ny">→</span> Botmaster mengklasifikasi bot berdasarkan kemampuan</div>
+            <div class="flex gap-2"><span class="ny">→</span> Bot dapat menerima update malware baru kapan saja</div>
+            <div class="flex gap-2"><span class="ny">→</span> Pengguna tidak menyadari — komputer terasa sedikit lemot saja</div>
+            <div class="flex gap-2"><span class="ny">→</span> Bot juga bisa mencuri password, data kartu kredit, dll.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-step" style="border-left-color:var(--red)">
+        <div class="info-step-num" style="color:var(--red);background:rgba(255,32,64,.1);border-color:var(--red);">5</div>
+        <div>
+          <div class="font-bold text-slate-200 text-sm mb-1">💥 Eksekusi Serangan DDoS</div>
+          <p class="text-xs text-slate-400 leading-relaxed mb-2">
+            Saat botmaster memberikan perintah serangan, semua bot secara bersamaan membanjiri target:
+          </p>
+          <div class="text-xs space-y-1 text-slate-400">
+            <div class="flex gap-2"><span class="nr">→</span> Botmaster kirim perintah: <span class="mono nr">ATTACK 203.0.113.5 HTTP 80 3600</span></div>
+            <div class="flex gap-2"><span class="nr">→</span> Ribuan bot mulai mengirim jutaan request per detik ke target</div>
+            <div class="flex gap-2"><span class="nr">→</span> IP sumber dipalsukan (spoofed) agar sulit dilacak</div>
+            <div class="flex gap-2"><span class="nr">→</span> Server target kehabisan resource dan tidak bisa melayani user sah</div>
+            <div class="flex gap-2"><span class="nr">→</span> Layanan down — website tidak bisa diakses</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Botnet architecture diagram -->
+  <div class="panel p-6">
+    <div class="orb text-base no mb-4">Arsitektur Botnet — Command & Control</div>
+    <div class="overflow-x-auto">
+      <div class="min-w-[600px]">
+        <!-- Diagram SVG -->
+        <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;border-radius:8px;background:#030810;">
+
+          <!-- Grid -->
+          <defs>
+            <pattern id="grid" width="30" height="30" patternUnits="userSpaceOnUse">
+              <path d="M 30 0 L 0 0 0 30" fill="none" stroke="rgba(255,107,0,0.04)" stroke-width="1"/>
+            </pattern>
+            <filter id="glow-o">
+              <feGaussianBlur stdDeviation="3" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <filter id="glow-r">
+              <feGaussianBlur stdDeviation="2.5" result="b"/>
+              <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+            <marker id="arr-o" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#ff6b00"/>
+            </marker>
+            <marker id="arr-r" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#ff2040"/>
+            </marker>
+            <marker id="arr-p" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L0,6 L8,3 z" fill="#a855f7"/>
+            </marker>
+          </defs>
+          <rect width="700" height="320" fill="url(#grid)"/>
+
+          <!-- BOTMASTER -->
+          <rect x="295" y="15" width="110" height="52" rx="6" fill="#0d0a00" stroke="#ff6b00" stroke-width="1.5" filter="url(#glow-o)"/>
+          <text x="350" y="36" text-anchor="middle" font-family="Orbitron" font-size="9" fill="#ff6b00">👤 BOTMASTER</text>
+          <text x="350" y="52" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#4a6a8a">attacker@darknet</text>
+          <text x="350" y="63" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#ff6b00">TOR Anonymized</text>
+
+          <!-- Arrow down to C&C -->
+          <line x1="350" y1="67" x2="350" y2="108" stroke="#ff6b00" stroke-width="1.5" stroke-dasharray="4,3" marker-end="url(#arr-o)"/>
+          <text x="360" y="92" font-family="Share Tech Mono" font-size="7" fill="#4a6a8a">encrypted cmd</text>
+
+          <!-- C&C Server -->
+          <rect x="270" y="108" width="160" height="52" rx="6" fill="#100500" stroke="#ff6b00" stroke-width="1.5" filter="url(#glow-o)"/>
+          <text x="350" y="128" text-anchor="middle" font-family="Orbitron" font-size="9" fill="#ff6b00">⚡ C&amp;C SERVER</text>
+          <text x="350" y="143" text-anchor="middle" font-family="Share Tech Mono" font-size="8" fill="#4a6a8a">cmd.darkflux.onion:443</text>
+          <text x="350" y="156" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#a855f7">Fast-Flux DNS + TLS</text>
+
+          <!-- C&C to bots arrows -->
+          <!-- Left cluster -->
+          <line x1="270" y1="134" x2="120" y2="200" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arr-p)"/>
+          <!-- Center-left -->
+          <line x1="310" y1="160" x2="230" y2="210" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arr-p)"/>
+          <!-- Center-right -->
+          <line x1="390" y1="160" x2="470" y2="210" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arr-p)"/>
+          <!-- Right cluster -->
+          <line x1="430" y1="134" x2="580" y2="200" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="3,3" marker-end="url(#arr-p)"/>
+
+          <!-- BOT clusters -->
+          <!-- Bot 1 group -->
+          <g>
+            <rect x="70" y="200" width="100" height="44" rx="5" fill="#0a0305" stroke="#ff2040" stroke-width="1" filter="url(#glow-r)"/>
+            <text x="120" y="218" text-anchor="middle" font-family="Orbitron" font-size="8" fill="#ff2040">🖥 BOT CLUSTER</text>
+            <text x="120" y="232" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#4a6a8a">×340 zombies</text>
+            <text x="120" y="242" text-anchor="middle" font-family="Share Tech Mono" font-size="6.5" fill="#ff2040">Asia Pacific</text>
+          </g>
+
+          <!-- Bot 2 -->
+          <g>
+            <rect x="185" y="210" width="90" height="44" rx="5" fill="#0a0305" stroke="#ff2040" stroke-width="1" filter="url(#glow-r)"/>
+            <text x="230" y="228" text-anchor="middle" font-family="Orbitron" font-size="8" fill="#ff2040">🖥 BOTS</text>
+            <text x="230" y="242" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#4a6a8a">×210 zombies</text>
+            <text x="230" y="252" text-anchor="middle" font-family="Share Tech Mono" font-size="6.5" fill="#ff2040">South Asia</text>
+          </g>
+
+          <!-- Bot 3 -->
+          <g>
+            <rect x="425" y="210" width="90" height="44" rx="5" fill="#0a0305" stroke="#ff2040" stroke-width="1" filter="url(#glow-r)"/>
+            <text x="470" y="228" text-anchor="middle" font-family="Orbitron" font-size="8" fill="#ff2040">🖥 BOTS</text>
+            <text x="470" y="242" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#4a6a8a">×290 zombies</text>
+            <text x="470" y="252" text-anchor="middle" font-family="Share Tech Mono" font-size="6.5" fill="#ff2040">Europe</text>
+          </g>
+
+          <!-- Bot 4 group -->
+          <g>
+            <rect x="530" y="200" width="100" height="44" rx="5" fill="#0a0305" stroke="#ff2040" stroke-width="1" filter="url(#glow-r)"/>
+            <text x="580" y="218" text-anchor="middle" font-family="Orbitron" font-size="8" fill="#ff2040">🖥 BOT CLUSTER</text>
+            <text x="580" y="232" text-anchor="middle" font-family="Share Tech Mono" font-size="7" fill="#4a6a8a">×160 zombies</text>
+            <text x="580" y="242" text-anchor="middle" font-family="Share Tech Mono" font-size="6.5" fill="#ff2040">Americas</text>
+          </g>
+
+          <!-- Flood arrows to target -->
+          <line x1="120" y1="244" x2="290" y2="286" stroke="#ff2040" stroke-width="2" marker-end="url(#arr-r)"/>
+          <line x1="230" y1="254" x2="310" y2="286" stroke="#ff2040" stroke-width="2" marker-end="url(#arr-r)"/>
+          <line x1="470" y1="254" x2="390" y2="286" stroke="#ff2040" stroke-width="2" marker-end="url(#arr-r)"/>
+          <line x1="580" y1="244" x2="410" y2="286" stroke="#ff2040" stroke-width="2" marker-end="url(#arr-r)"/>
+
+          <!-- TARGET -->
+          <rect x="275" y="284" width="150" height="30" rx="5" fill="#100005" stroke="#ff2040" stroke-width="2" filter="url(#glow-r)"/>
+          <text x="350" y="304" text-anchor="middle" font-family="Orbitron" font-size="9" fill="#ff2040">🎯 TARGET SERVER — DOWN</text>
+
+          <!-- Labels -->
+          <text x="6" y="295" font-family="Share Tech Mono" font-size="7" fill="#ff6b00">FLOOD: 2.4M req/s</text>
+        </svg>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /tab-infect -->
+
+<!-- ═══════════════════════════════════════
+     TAB: JENIS SERANGAN
+════════════════════════════════════════ -->
+<div id="tab-types" class="tab-content relative z-10 max-w-6xl mx-auto px-4 pb-12 space-y-4" style="display:none">
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <div class="panel p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="badge b-red">LAYER 3-4</span>
+        <div class="orb text-sm no">Volumetric Attack</div>
+      </div>
+      <div class="space-y-3 text-xs text-slate-400">
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--red)">
+          <div class="text-slate-200 font-semibold mb-1">UDP Flood</div>
+          Mengirim paket UDP dalam jumlah masif ke port acak. Target terpaksa memproses setiap paket dan membalas ICMP "Destination Unreachable" — menghabiskan bandwidth dua arah.
+          <div class="mt-1 mono text-[.67rem] text-slate-600">Ukuran tipikal: 100 Gbps — 2+ Tbps</div>
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--red)">
+          <div class="text-slate-200 font-semibold mb-1">ICMP Flood (Ping Flood)</div>
+          Membanjiri target dengan paket ICMP Echo Request. Memaksa target terus merespon ping hingga bandwidth habis.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--orange)">
+          <div class="text-slate-200 font-semibold mb-1">DNS Amplification</div>
+          Mengirim query DNS kecil dengan IP sumber dipalsukan (IP target). Server DNS membalas respons besar langsung ke target. Amplifikasi hingga 70x lipat dari ukuran asli.
+          <div class="mt-1 mono text-[.67rem] text-slate-600">Contoh: kirim 100B → target terima 7.000B</div>
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--orange)">
+          <div class="text-slate-200 font-semibold mb-1">NTP Amplification</div>
+          Exploit perintah <span class="mono">monlist</span> NTP yang mengembalikan daftar 600 IP terakhir. Amplifikasi hingga 556x.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="badge b-orange">LAYER 4</span>
+        <div class="orb text-sm no">Protocol Attack</div>
+      </div>
+      <div class="space-y-3 text-xs text-slate-400">
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--orange)">
+          <div class="text-slate-200 font-semibold mb-1">SYN Flood</div>
+          Mengeksploitasi TCP three-way handshake. Attacker mengirim ribuan SYN dengan IP palsu. Server mengalokasikan resource menunggu ACK yang tidak pernah datang — tabel koneksi penuh.
+          <div class="mt-1 font-mono text-[.67rem] text-slate-600">CLIENT→SYN→SERVER→SYN-ACK→[CLIENT HILANG] ×∞</div>
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--orange)">
+          <div class="text-slate-200 font-semibold mb-1">Ping of Death</div>
+          Mengirim paket ICMP melebihi ukuran maksimum (65.535 bytes). Saat di-reassemble, buffer overflow menyebabkan crash atau freeze.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--yellow)">
+          <div class="text-slate-200 font-semibold mb-1">Smurf Attack</div>
+          Mengirim ICMP broadcast ke seluruh jaringan dengan IP sumber = IP target. Semua host membalas ke target sekaligus.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--yellow)">
+          <div class="text-slate-200 font-semibold mb-1">Fragmentation Attack</div>
+          Mengirim paket terfragmentasi yang tidak bisa di-reassemble. Menghabiskan memori buffer reassembly target.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="badge b-purple">LAYER 7</span>
+        <div class="orb text-sm no">Application Attack</div>
+      </div>
+      <div class="space-y-3 text-xs text-slate-400">
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--purple)">
+          <div class="text-slate-200 font-semibold mb-1">HTTP Flood</div>
+          Mengirim jutaan request HTTP GET/POST yang tampak sah. Memaksa server memproses logic aplikasi penuh. Lebih sulit dibedakan dari trafik normal.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--purple)">
+          <div class="text-slate-200 font-semibold mb-1">Slowloris</div>
+          Membuka banyak koneksi HTTP dan mengirim header secara sangat lambat — tidak pernah selesai. Setiap koneksi tetap terbuka, menghabiskan pool koneksi server.
+          <div class="mt-1 mono text-[.67rem] text-slate-600">Butuh bandwidth kecil tapi efek besar pada Apache/IIS</div>
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--blue)">
+          <div class="text-slate-200 font-semibold mb-1">SSL Exhaustion</div>
+          Berulang kali memulai SSL handshake. Operasi kriptografi sangat CPU-intensive — bahkan beberapa ratus koneksi/detik bisa melumpuhkan server.
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <div class="flex items-center gap-2 mb-3">
+        <span class="badge b-yellow">ADVANCED</span>
+        <div class="orb text-sm no">Multi-Vector Attack</div>
+      </div>
+      <div class="space-y-3 text-xs text-slate-400">
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--yellow)">
+          <div class="text-slate-200 font-semibold mb-1">Multi-Vector DDoS</div>
+          Menggabungkan beberapa jenis serangan secara bersamaan — volumetric + protocol + application layer. Sangat sulit dimitigasi karena membutuhkan respons di semua layer sekaligus.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--yellow)">
+          <div class="text-slate-200 font-semibold mb-1">Carpet Bombing</div>
+          Menyerang seluruh subnet IP (/24) sekaligus, bukan satu target. Semua host dalam range IP terkena — efektif mematikan seluruh layanan ISP.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <div class="text-slate-200 font-semibold mb-1">Ransom DDoS (RDoS)</div>
+          Attacker mengirim peringatan: bayar tebusan atau diserang DDoS. Sering disertai serangan demonstrasi kecil sebagai "bukti kemampuan".
+          <div class="mt-1 mono text-[.67rem] text-slate-600">Pelaku: Fancy Bear, Lazarus Group, dll.</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /tab-types -->
+
+<!-- ═══════════════════════════════════════
+     TAB: PERTAHANAN
+════════════════════════════════════════ -->
+<div id="tab-defend" class="tab-content relative z-10 max-w-6xl mx-auto px-4 pb-12 space-y-4" style="display:none">
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+    <div class="panel p-5">
+      <div class="orb text-sm ng mb-4">🛡️ Pertahanan Sisi Server</div>
+      <div class="space-y-2 text-xs text-slate-400">
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="ng mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">Rate Limiting & Throttling</span> — Batasi jumlah request per IP/detik. Blokir otomatis IP yang melampaui threshold.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="ng mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">SYN Cookies</span> — Teknik TCP yang tidak mengalokasikan resource sampai handshake benar-benar selesai. Melindungi dari SYN flood.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="ng mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">Blackhole Routing (RTBH)</span> — Membuang semua trafik ke IP yang diserang. Melindungi infrastruktur lain tapi target tetap down.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="ng mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">Anycast Diffusion</span> — Menyebarkan trafik ke banyak server global. Serangan "diencerkan" ke banyak titik.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="ng mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">Web Application Firewall (WAF)</span> — Filter trafik Layer 7, blokir pattern serangan yang dikenal.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <div class="orb text-sm ng mb-4">☁️ Cloud & CDN Protection</div>
+      <div class="space-y-2 text-xs text-slate-400">
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="nb mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">Cloudflare / Akamai DDoS Scrubbing</span> — Trafik melewati scrubbing center yang memfilter serangan sebelum sampai ke server asli.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="nb mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">BGP Flowspec</span> — Propagasi aturan filtering ke seluruh router upstream ISP. Membuang trafik buruk di sumber.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="nb mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">Over-Provisioning Bandwidth</span> — Menyiapkan kapasitas jauh melebihi kebutuhan normal sehingga flood tidak langsung meluap.</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <span class="nb mt-0.5">✓</span>
+          <div><span class="text-slate-300 font-semibold">ML-based Anomaly Detection</span> — AI mendeteksi pola trafik anomali secara real-time dan memblokir otomatis sebelum impact.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <div class="orb text-sm ng mb-4">🖥️ Lindungi Komputer Anda dari Botnet</div>
+      <div class="space-y-2 text-xs text-slate-400">
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Update OS dan software secara rutin — patch kerentanan sebelum dieksploitasi</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Gunakan antivirus/EDR yang terpercaya dan selalu update signature-nya</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Jangan download software dari sumber tidak resmi — hindari crack & keygen</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Waspadai email phishing — verifikasi pengirim sebelum klik link atau buka lampiran</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Aktifkan firewall dan monitor aktivitas jaringan yang mencurigakan</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Gunakan DNS-over-HTTPS untuk mencegah DNS hijacking oleh C&C server</div>
+        </div>
+        <div class="flex gap-2 p-2 rounded" style="background:#050d18;border-left:3px solid var(--green)">
+          <span class="ng">✓</span><div>Monitor penggunaan CPU/bandwidth yang tidak wajar — bisa tanda infeksi bot</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel p-5">
+      <div class="orb text-sm ny mb-4">⚖️ Aspek Hukum</div>
+      <div class="space-y-3 text-xs text-slate-400">
+        <div class="p-3 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <div class="ny font-semibold mb-1">🇮🇩 Indonesia — UU ITE</div>
+          Serangan DDoS termasuk pelanggaran <span class="text-slate-300">UU No. 11 Tahun 2008 tentang ITE (direvisi 2024)</span> Pasal 32-33. Ancaman pidana penjara hingga <span class="nr font-semibold">8 tahun</span> dan/atau denda hingga <span class="nr font-semibold">Rp 2 miliar</span>.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border:1px solid #0f2035;">
+          <div class="ny font-semibold mb-1">🌍 Internasional</div>
+          Di AS, serangan DDoS melanggar <span class="text-slate-300">Computer Fraud and Abuse Act (CFAA)</span> — hukuman hingga 10+ tahun penjara. Di Uni Eropa: Directive on Attacks Against Information Systems.
+        </div>
+        <div class="p-3 rounded" style="background:#050d18;border-left:3px solid var(--red)">
+          <div class="nr font-semibold mb-1">⚠️ Peringatan Penting</div>
+          Simulasi ini hanya untuk tujuan <span class="text-slate-200">edukasi dan pemahaman keamanan siber</span>. Melakukan serangan DDoS terhadap sistem nyata adalah <span class="nr font-semibold">TINDAK PIDANA</span> yang dapat berujung penjara dan denda besar.
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div><!-- /tab-defend -->
+
+<script>
+// ═══════════════════════════════════════════════════════
+// TAB NAVIGATION
+// ═══════════════════════════════════════════════════════
+function showTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).style.display = 'block';
+  btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════════════════════
+// FEATURE TOGGLES
+// ═══════════════════════════════════════════════════════
+const toggleState = { spoof: true, enc: true };
+function toggleFeature(key) {
+  toggleState[key] = !toggleState[key];
+  const tog = document.getElementById('tog-' + key);
+  const lbl = document.getElementById('lbl-' + key);
+  tog.classList.toggle('on', toggleState[key]);
+  lbl.textContent = toggleState[key] ? 'ON' : 'OFF';
+  lbl.style.color = toggleState[key] ? 'var(--orange)' : 'var(--text-dim)';
+}
+
+// ═══════════════════════════════════════════════════════
+// CANVAS SETUP
+// ═══════════════════════════════════════════════════════
+const canvas = document.getElementById('ddos-canvas');
+const ctx    = canvas.getContext('2d');
+let W, H;
+
+function resizeCanvas() {
+  W = canvas.offsetWidth;
+  H = 280;
+  canvas.width  = W;
+  canvas.height = H;
+}
+resizeCanvas();
+window.addEventListener('resize', () => { resizeCanvas(); if (!running) drawIdle(); });
+
+// ═══════════════════════════════════════════════════════
+// BOT GRID
+// ═══════════════════════════════════════════════════════
+const MAX_BOTS = 500; // grid squares
+let botStates = new Array(MAX_BOTS).fill(0); // 0=idle,1=attack,2=blocked
+
+function updateBotGrid() {
+  const grid = document.getElementById('bot-grid');
+  const activeFrac = parseInt(document.getElementById('bot-count').value) / 2000;
+  // update colors
+  const items = grid.querySelectorAll('.bot-item');
+  items.forEach((el, i) => {
+    if (running) {
+      if (i < Math.floor(activeFrac * MAX_BOTS)) {
+        const r = Math.random();
+        el.style.background = r < 0.92 ? 'var(--orange)' : 'var(--red)';
+        el.style.boxShadow = r < 0.92 ? '0 0 4px var(--orange)' : '0 0 4px var(--red)';
+      } else {
+        el.style.background = '#1a3a5c';
+        el.style.boxShadow = 'none';
+      }
+    } else {
+      el.style.background = '#1a3a5c';
+      el.style.boxShadow = 'none';
+    }
+  });
+}
+
+function buildBotGrid() {
+  const grid = document.getElementById('bot-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < MAX_BOTS; i++) {
+    const d = document.createElement('div');
+    d.className = 'bot-item';
+    d.style.background = '#1a3a5c';
+    grid.appendChild(d);
+  }
+}
+buildBotGrid();
+
+// ═══════════════════════════════════════════════════════
+// PARTICLES
+// ═══════════════════════════════════════════════════════
+let particles = [];
+
+class Particle {
+  constructor(sx, sy, tx, ty) {
+    this.x  = sx; this.y  = sy;
+    this.tx = tx; this.ty = ty;
+    this.t  = 0;
+    this.speed = .01 + Math.random() * .025;
+    this.size  = 1.5 + Math.random() * 2.5;
+    this.color = Math.random() < .85 ? '#ff6b00' : '#ff2040';
+    this.alpha = .9;
+    this.trail = [];
+    this.arrived = false;
+  }
+  update() {
+    this.trail.push({ x: this.x, y: this.y });
+    if (this.trail.length > 8) this.trail.shift();
+    this.t = Math.min(1, this.t + this.speed);
+    const e = this.t < .5 ? 2 * this.t * this.t : -1 + (4 - 2 * this.t) * this.t;
+    this.x = this.x + (this.tx - this.x) * (this.speed * 1.8);
+    this.y = this.y + (this.ty - this.y) * (this.speed * 1.8);
+    if (this.t >= 1) this.arrived = true;
+    this.alpha -= .004;
+  }
+  draw(ctx) {
+    // trail
+    for (let i = 0; i < this.trail.length; i++) {
+      ctx.beginPath();
+      ctx.arc(this.trail[i].x, this.trail[i].y, this.size * .5 * (i / this.trail.length), 0, Math.PI * 2);
+      ctx.fillStyle = this.color + Math.floor((i / this.trail.length) * 40).toString(16).padStart(2, '0');
+      ctx.fill();
+    }
+    // particle
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.shadowColor = this.color;
+    ctx.shadowBlur = 6;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+}
+
+// ═══════════════════════════════════════════════════════
+// SIMULATION STATE
+// ═══════════════════════════════════════════════════════
+let running = false;
+let raf = null;
+let serverHealth = 100;
+let totalRequests = 0;
+let droppedPct = 0;
+let bwSat = 0;
+let cpuLoad = 0;
+let simTime = 0;
+let serverShaking = false;
+
+const targetCenter = () => ({ x: W / 2, y: H - 52 });
+
+function getBotSources() {
+  const count = Math.min(60, Math.floor(parseInt(document.getElementById('bot-count').value) / 8));
+  const srcs = [];
+  for (let i = 0; i < count; i++) {
+    const angle = (i / count) * Math.PI * 2;
+    const r = Math.min(W, H) * .42;
+    srcs.push({
+      x: W / 2 + Math.cos(angle) * r * (.6 + Math.random() * .4),
+      y: H / 2 + Math.sin(angle) * r * (.55 + Math.random() * .3) - 20
+    });
+  }
+  return srcs;
+}
+
+let botSources = [];
+
+function spawnParticles() {
+  if (!running) return;
+  const intensity = parseInt(document.getElementById('intensity').value);
+  const count = Math.floor(intensity * 3.5);
+  const tc = targetCenter();
+  botSources.forEach(src => {
+    if (Math.random() < 0.7) {
+      for (let i = 0; i < count; i++) {
+        if (particles.length < 800) {
+          particles.push(new Particle(
+            src.x + (Math.random() - .5) * 20,
+            src.y + (Math.random() - .5) * 20,
+            tc.x + (Math.random() - .5) * 30,
+            tc.y + (Math.random() - .5) * 20
+          ));
+        }
+      }
+    }
+  });
+}
+
+// ═══════════════════════════════════════════════════════
+// DRAW
+// ═══════════════════════════════════════════════════════
+function drawIdle() {
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#030810';
+  ctx.fillRect(0, 0, W, H);
+
+  // grid
+  ctx.strokeStyle = 'rgba(255,107,0,.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // Center server
+  drawServer(W / 2, H - 52, 1, false);
+
+  // Label
+  ctx.fillStyle = '#4a6a8a';
+  ctx.font = '13px Orbitron,monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('Tekan MULAI SERANGAN untuk memulai simulasi', W / 2, H / 2 - 10);
+  ctx.font = '11px Share Tech Mono,monospace';
+  ctx.fillText('SERVER TARGET — ONLINE', W / 2, H - 20);
+}
+
+function drawServer(x, y, healthFrac, shaking) {
+  const sx = shaking ? x + (Math.random() - .5) * 5 : x;
+  const w = 90, h = 44;
+  const hx = sx - w / 2, hy = y - h / 2;
+
+  const col = healthFrac > .6 ? '#00e87a' : healthFrac > .3 ? '#ffd700' : '#ff2040';
+
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = col;
+  ctx.lineWidth = 2;
+  ctx.strokeRect(hx, hy, w, h);
+  ctx.shadowBlur = 0;
+
+  ctx.fillStyle = '#050d18';
+  ctx.fillRect(hx + 1, hy + 1, w - 2, h - 2);
+
+  // lights
+  for (let i = 0; i < 3; i++) {
+    ctx.beginPath();
+    ctx.arc(hx + 10 + i * 10, hy + 12, 3, 0, Math.PI * 2);
+    ctx.fillStyle = i === 0 ? col : '#1a3a5c';
+    ctx.fill();
+  }
+
+  // label
+  ctx.fillStyle = col;
+  ctx.font = 'bold 8px Orbitron,monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('SERVER TARGET', sx, hy + 28);
+  ctx.font = '7px Share Tech Mono,monospace';
+  ctx.fillStyle = '#4a6a8a';
+  ctx.fillText(Math.round(healthFrac * 100) + '% health', sx, hy + 38);
+}
+
+function drawBotNodes() {
+  botSources.forEach((src, i) => {
+    ctx.beginPath();
+    ctx.arc(src.x, src.y, 5, 0, Math.PI * 2);
+    ctx.fillStyle = '#ff6b00';
+    ctx.shadowColor = '#ff6b00';
+    ctx.shadowBlur = 8;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    // pulse ring
+    const pulse = (simTime * 0.05 + i * 0.3) % 1;
+    ctx.beginPath();
+    ctx.arc(src.x, src.y, 5 + pulse * 15, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,107,0,${(1 - pulse) * 0.4})`;
+    ctx.lineWidth = 1;
+    ctx.stroke();
+  });
+}
+
+function drawFrame() {
+  if (!running) return;
+  simTime++;
+
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#030810';
+  ctx.fillRect(0, 0, W, H);
+
+  // grid
+  ctx.strokeStyle = 'rgba(255,107,0,.03)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < W; x += 30) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+  for (let y = 0; y < H; y += 30) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+  // spawn
+  if (simTime % 2 === 0) spawnParticles();
+
+  // update & draw particles
+  particles = particles.filter(p => {
+    p.update();
+    p.draw(ctx);
+    return !p.arrived && p.alpha > 0;
+  });
+
+  // bot nodes
+  drawBotNodes();
+
+  // server
+  const hf = serverHealth / 100;
+  drawServer(W / 2, H - 52, hf, serverHealth < 30);
+
+  // explosion effect when low health
+  if (serverHealth < 20) {
+    const tc = targetCenter();
+    ctx.beginPath();
+    ctx.arc(tc.x, tc.y, 50 + Math.sin(simTime * .2) * 15, 0, Math.PI * 2);
+    ctx.strokeStyle = `rgba(255,32,64,${.15 + Math.sin(simTime * .1) * .1})`;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  // update stats
+  const botCount = parseInt(document.getElementById('bot-count').value);
+  const intensity = parseInt(document.getElementById('intensity').value);
+  const rps = Math.floor(botCount * intensity * 145 + Math.random() * 5000);
+  const gbps = ((botCount * intensity * 0.0021) + Math.random() * .5).toFixed(2);
+  const activeFrac = Math.min(1, botCount / 2000);
+
+  totalRequests += rps;
+  bwSat = Math.min(100, activeFrac * intensity * 11 + Math.random() * 3);
+  cpuLoad = Math.min(100, activeFrac * intensity * 13 + Math.random() * 5);
+  droppedPct = Math.floor(bwSat * .6 + Math.random() * 5);
+  serverHealth = Math.max(0, serverHealth - (intensity * activeFrac * .08));
+
+  document.getElementById('stat-rps').textContent = rps.toLocaleString();
+  document.getElementById('stat-gbps').textContent = gbps;
+  document.getElementById('stat-bots').textContent = botCount.toLocaleString();
+  document.getElementById('stat-drop').textContent = droppedPct + '%';
+
+  const hp = Math.round(serverHealth);
+  const hpEl = document.getElementById('health-pct');
+  hpEl.textContent = hp + '%';
+  hpEl.style.color = hp > 60 ? 'var(--green)' : hp > 30 ? 'var(--yellow)' : 'var(--red)';
+  document.getElementById('health-bar').style.width = hp + '%';
+  document.getElementById('health-bar').style.background = hp > 60 ? 'var(--green)' : hp > 30 ? 'var(--yellow)' : 'var(--red)';
+
+  document.getElementById('bw-pct').textContent = Math.round(bwSat) + '%';
+  document.getElementById('bw-bar').style.width = bwSat + '%';
+  document.getElementById('cpu-pct').textContent = Math.round(cpuLoad) + '%';
+  document.getElementById('cpu-bar').style.width = cpuLoad + '%';
+
+  // update bot grid every 20 frames
+  if (simTime % 20 === 0) updateBotGrid();
+
+  // periodic log
+  if (simTime % 90 === 0) randomLog();
+
+  // server down
+  if (serverHealth <= 0 && running) {
+    serverDown();
+    return;
+  }
+
+  raf = requestAnimationFrame(drawFrame);
+}
+
+function serverDown() {
+  running = false;
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled  = true;
+  document.getElementById('attack-status').textContent = '💀 SERVER DOWN';
+  document.getElementById('attack-status').className = 'badge b-red glitch';
+  log('err', '[TARGET] 💥 SERVER DOWN! Semua layanan tidak dapat diakses.');
+  log('err', '[TARGET] Connection timeout — 503 Service Unavailable');
+  log('bot', `[C&C]    Serangan berhasil! Target offline setelah ${Math.floor(simTime/60)} detik.`);
+  // Flash canvas red
+  ctx.fillStyle = 'rgba(255,32,64,.25)';
+  ctx.fillRect(0, 0, W, H);
+  updateBotGrid();
+}
+
+// ═══════════════════════════════════════════════════════
+// CONTROLS
+// ═══════════════════════════════════════════════════════
+function startAttack() {
+  if (running) return;
+  running = true;
+  serverHealth = 100;
+  simTime = 0;
+  particles = [];
+  botSources = getBotSources();
+
+  const target = document.getElementById('target-type');
+  const targetName = target.options[target.selectedIndex].text;
+  const botCount = document.getElementById('bot-count').value;
+  const intensity = document.getElementById('intensity').value;
+
+  document.getElementById('btn-start').disabled = true;
+  document.getElementById('btn-stop').disabled  = false;
+  document.getElementById('attack-status').textContent = '⚡ ATTACKING';
+  document.getElementById('attack-status').className = 'badge b-red';
+
+  log('bot',  `[C&C]    Perintah serangan dikirim ke ${botCount} bot aktif.`);
+  log('warn', `[ALERT]  Target: ${targetName}`);
+  log('bot',  `[BOT]    Intensitas: ${intensity}/10 — Spoofed IP: ${toggleState.spoof ? 'YES' : 'NO'}`);
+  log('err',  `[FLOOD]  Serangan dimulai! Packet flooding aktif...`);
+
+  const types = ['HTTP Flood','UDP Flood','SYN Flood','DNS Amp','ICMP Flood'];
+  log('info', `[ATTYPE] Metode: ${types[Math.floor(Math.random()*types.length)]}`);
+
+  updateBotGrid();
+  drawFrame();
+}
+
+function stopAttack() {
+  running = false;
+  if (raf) cancelAnimationFrame(raf);
+  document.getElementById('btn-start').disabled = false;
+  document.getElementById('btn-stop').disabled  = true;
+  document.getElementById('attack-status').textContent = '⬛ IDLE';
+  document.getElementById('attack-status').className = 'badge b-blue';
+  log('ok',   '[C&C]    Perintah STOP dikirim. Bot kembali idle.');
+  updateBotGrid();
+  drawIdle();
+}
+
+function resetSim() {
+  stopAttack();
+  serverHealth = 100;
+  document.getElementById('health-bar').style.width = '100%';
+  document.getElementById('health-bar').style.background = 'var(--green)';
+  document.getElementById('health-pct').textContent = '100%';
+  document.getElementById('bw-bar').style.width = '0%';
+  document.getElementById('cpu-bar').style.width = '0%';
+  document.getElementById('stat-rps').textContent  = '0';
+  document.getElementById('stat-gbps').textContent = '0';
+  document.getElementById('stat-bots').textContent = '0';
+  document.getElementById('stat-drop').textContent = '0%';
+  document.getElementById('bw-pct').textContent  = '0%';
+  document.getElementById('cpu-pct').textContent = '0%';
+  document.getElementById('attack-status').className = 'badge b-blue';
+  document.getElementById('attack-status').textContent = '⬛ IDLE';
+  log('info', '[SYSTEM] Simulasi di-reset. Server kembali online.');
+  drawIdle();
+}
+
+// ═══════════════════════════════════════════════════════
+// LOGGING
+// ═══════════════════════════════════════════════════════
+function ts() {
+  const n = new Date();
+  return `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
+}
+
+function log(type, msg) {
+  const box = document.getElementById('log-box');
+  const map = { ok:'l-ok', err:'l-err', warn:'l-warn', info:'l-info', bot:'l-bot', dim:'l-dim' };
+  const el = document.createElement('div');
+  el.innerHTML = `<span class="l-dim">[${ts()}]</span> <span class="${map[type] || 'l-dim'}">${msg}</span>`;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+}
+
+function clearLog() {
+  document.getElementById('log-box').innerHTML = '<span class="l-dim">[SYSTEM] Log dibersihkan.</span>';
+}
+
+const randomMessages = [
+  ['bot', '[BOT]    Mengirim 847.293 paket SYN — IP: 45.x.x.x (spoofed)'],
+  ['err', '[TARGET] Respons melambat — latensi naik ke 4.2 detik'],
+  ['warn','[NET]    Bandwidth utilisasi mencapai 94% — saturasi kritis'],
+  ['bot', '[C&C]    Koordinasi serangan gelombang ke-2 dimulai'],
+  ['err', '[TARGET] HTTP 503 — Server kehabisan connection pool'],
+  ['warn','[IDS]    Anomali terdeteksi — memfilter trafik...'],
+  ['bot', '[BOT]    Rotasi IP sumber setiap 30 detik untuk menghindari block'],
+  ['err', '[TARGET] CPU load 98% — proses tidak responsif'],
+  ['info','[NET]    Paket dari 12 negara berbeda — sulit untuk geoblocking'],
+  ['bot', '[C&C]    Update payload dikirim — mengaktifkan amplifikasi DNS'],
+];
+let msgIdx = 0;
+function randomLog() {
+  const m = randomMessages[msgIdx % randomMessages.length];
+  log(m[0], m[1]);
+  msgIdx++;
+}
+
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+drawIdle();
+log('ok',   '[SYSTEM] DDoS Simulator loaded. Virtual network online.');
+log('info', '[INFO]   Pilih target, jumlah bot, dan intensitas serangan.');
+log('dim',  '[NOTE]   Ini adalah simulasi edukasi — tidak ada sistem nyata yang diserang.');
+</script>
+</body>
+</html>
