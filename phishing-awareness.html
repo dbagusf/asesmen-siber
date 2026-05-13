@@ -1,0 +1,1402 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Simulasi Serangan Phishing & Social Engineering — Edukasi Keamanan</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --red: #e8002a;
+      --red-dark: #b5001f;
+      --amber: #f59e0b;
+      --green: #10b981;
+      --bg: #0a0a0f;
+      --surface: #111118;
+      --surface2: #1a1a24;
+      --border: #2a2a3a;
+      --text: #e8e8f0;
+      --muted: #8888aa;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background-color: var(--bg);
+      color: var(--text);
+      margin: 0;
+    }
+    .mono { font-family: 'JetBrains Mono', monospace; }
+    .serif { font-family: 'Playfair Display', serif; }
+
+    /* Noise texture overlay */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    /* Animated scan line */
+    .scanline {
+      position: fixed;
+      top: -100%;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--red), transparent);
+      opacity: 0.3;
+      animation: scan 6s linear infinite;
+      z-index: 999;
+    }
+    @keyframes scan {
+      0% { top: -5%; }
+      100% { top: 105%; }
+    }
+
+    /* Hero glitch */
+    .glitch {
+      position: relative;
+      display: inline-block;
+    }
+    .glitch::before, .glitch::after {
+      content: attr(data-text);
+      position: absolute;
+      inset: 0;
+      font-family: inherit;
+      font-size: inherit;
+      font-weight: inherit;
+    }
+    .glitch::before {
+      color: #ff003c;
+      clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+      transform: translateX(-2px);
+      animation: glitch1 3s infinite;
+    }
+    .glitch::after {
+      color: #00f0ff;
+      clip-path: polygon(0 60%, 100% 60%, 100% 80%, 0 80%);
+      transform: translateX(2px);
+      animation: glitch2 3s infinite;
+    }
+    @keyframes glitch1 {
+      0%, 90%, 100% { opacity: 0; }
+      92% { opacity: 1; transform: translateX(-4px) skewX(-2deg); }
+      94% { opacity: 1; transform: translateX(3px); }
+      96% { opacity: 1; transform: translateX(-2px); }
+      98% { opacity: 0; }
+    }
+    @keyframes glitch2 {
+      0%, 92%, 100% { opacity: 0; }
+      93% { opacity: 1; transform: translateX(4px) skewX(2deg); }
+      95% { opacity: 1; transform: translateX(-3px); }
+      97% { opacity: 1; transform: translateX(2px); }
+      99% { opacity: 0; }
+    }
+
+    /* Card hover */
+    .attack-card {
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: border-color 0.3s, transform 0.3s, box-shadow 0.3s;
+      position: relative;
+      overflow: hidden;
+    }
+    .attack-card::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(232,0,42,0.05), transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .attack-card:hover {
+      border-color: var(--red);
+      transform: translateY(-3px);
+      box-shadow: 0 12px 40px rgba(232,0,42,0.15);
+    }
+    .attack-card:hover::before { opacity: 1; }
+
+    /* Tab system */
+    .tab-btn { transition: all 0.2s; }
+    .tab-btn.active {
+      border-bottom: 2px solid var(--red);
+      color: white;
+    }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* Fake UI components */
+    .fake-browser {
+      background: #1e1e2e;
+      border-radius: 10px;
+      overflow: hidden;
+      border: 1px solid #333;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    }
+    .fake-browser-bar {
+      background: #2a2a3a;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .dot { width: 12px; height: 12px; border-radius: 50%; }
+    .fake-url {
+      background: #111;
+      border-radius: 6px;
+      padding: 4px 12px;
+      flex: 1;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      color: #aaa;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Pulse badge */
+    .pulse-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .pulse-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(1.3); }
+    }
+
+    /* Warning box */
+    .warn-box {
+      border-left: 4px solid var(--red);
+      background: rgba(232,0,42,0.07);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+    }
+    .info-box {
+      border-left: 4px solid #3b82f6;
+      background: rgba(59,130,246,0.07);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+    }
+    .success-box {
+      border-left: 4px solid var(--green);
+      background: rgba(16,185,129,0.07);
+      padding: 16px 20px;
+      border-radius: 0 8px 8px 0;
+    }
+
+    /* Timeline */
+    .timeline-item {
+      position: relative;
+      padding-left: 32px;
+    }
+    .timeline-item::before {
+      content: '';
+      position: absolute;
+      left: 10px;
+      top: 24px;
+      bottom: -10px;
+      width: 2px;
+      background: var(--border);
+    }
+    .timeline-item:last-child::before { display: none; }
+    .timeline-dot {
+      position: absolute;
+      left: 0;
+      top: 4px;
+      width: 22px; height: 22px;
+      border-radius: 50%;
+      border: 2px solid var(--red);
+      background: var(--bg);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px;
+      color: var(--red);
+      font-weight: 700;
+    }
+
+    /* Scroll reveal */
+    .reveal {
+      opacity: 0;
+      transform: translateY(20px);
+      transition: opacity 0.6s, transform 0.6s;
+    }
+    .reveal.visible {
+      opacity: 1;
+      transform: none;
+    }
+
+    /* Tag */
+    .severity-critical { background: rgba(232,0,42,0.15); color: #ff4466; border: 1px solid rgba(232,0,42,0.3); }
+    .severity-high     { background: rgba(245,158,11,0.15); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+    .severity-medium   { background: rgba(59,130,246,0.15); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+
+    /* Progress bar */
+    .threat-bar {
+      height: 6px;
+      border-radius: 3px;
+      background: var(--border);
+      overflow: hidden;
+    }
+    .threat-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: linear-gradient(90deg, var(--red-dark), var(--red));
+      transition: width 1s ease;
+    }
+
+    /* Accordion */
+    .accordion-body {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.4s ease;
+    }
+    .accordion-body.open {
+      max-height: 600px;
+    }
+    .accordion-icon {
+      transition: transform 0.3s;
+    }
+    .accordion-icon.open {
+      transform: rotate(45deg);
+    }
+
+    /* Checklist */
+    .check-item {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .check-item:last-child { border-bottom: none; }
+    .check-box {
+      width: 18px; height: 18px;
+      border: 2px solid var(--green);
+      border-radius: 4px;
+      flex-shrink: 0;
+      margin-top: 2px;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .check-box.checked { background: var(--green); }
+
+    /* Sticky nav */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(20px);
+      background: rgba(10,10,15,0.85);
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* Section label */
+    .section-label {
+      font-size: 11px;
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      color: var(--red);
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    /* Code block */
+    .code-block {
+      background: #0d0d14;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #c9d1d9;
+    }
+    .code-block .comment { color: #6e7681; }
+    .code-block .string  { color: #79c0ff; }
+    .code-block .keyword { color: #ff7b72; }
+    .code-block .func    { color: #d2a8ff; }
+
+    /* Smooth scroll */
+    html { scroll-behavior: smooth; }
+  </style>
+</head>
+<body>
+
+<div class="scanline"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 bg-red-600 rounded flex items-center justify-center">
+        <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+      </div>
+      <span class="font-bold text-sm tracking-wide">CyberAware<span class="text-red-500">KPTK</span></span>
+    </div>
+    <div class="hidden md:flex items-center gap-6 text-sm text-gray-400">
+      <a href="#phishing" class="hover:text-white transition-colors">Phishing</a>
+      <a href="#varians" class="hover:text-white transition-colors">Varian</a>
+      <a href="#social-eng" class="hover:text-white transition-colors">Social Engineering</a>
+      <a href="#deteksi" class="hover:text-white transition-colors">Deteksi</a>
+      <a href="#perlindungan" class="hover:text-white transition-colors">Perlindungan</a>
+    </div>
+    <div class="pulse-badge text-xs text-red-400 font-mono">
+      <span class="pulse-dot"></span> EDUKASI
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="relative py-24 px-6 overflow-hidden">
+  <div class="absolute inset-0 bg-gradient-to-br from-red-950/30 via-transparent to-transparent"></div>
+  <div class="absolute top-0 right-0 w-96 h-96 bg-red-600/5 rounded-full blur-3xl"></div>
+  <div class="absolute bottom-0 left-0 w-64 h-64 bg-red-800/10 rounded-full blur-2xl"></div>
+
+  <div class="max-w-6xl mx-auto relative">
+    <div class="mb-6">
+      <span class="mono text-xs text-red-500 tracking-widest">// MODUL EDUKASI KEAMANAN SIBER</span>
+    </div>
+    <h1 class="serif text-6xl md:text-7xl font-black leading-none mb-6">
+      <span class="glitch" data-text="PHISHING">PHISHING</span><br>
+      <span class="text-gray-500 text-4xl md:text-5xl font-bold">&amp; Social Engineering</span>
+    </h1>
+    <p class="text-gray-400 text-lg max-w-2xl mb-10 leading-relaxed">
+      Simulasi interaktif serangan siber paling umum. Pelajari bagaimana penyerang bekerja agar Anda dapat <span class="text-white font-semibold">mengenali dan menghindari</span> jebakan digital.
+    </p>
+
+    <div class="warn-box max-w-2xl mb-10">
+      <p class="text-sm text-red-300 font-semibold mb-1">⚠ Peringatan & Disclaimer</p>
+      <p class="text-sm text-gray-400">Konten ini dibuat <strong class="text-white">semata-mata untuk tujuan edukasi</strong>. Melakukan serangan phishing atau social engineering terhadap pihak lain tanpa izin adalah <strong class="text-red-400">tindakan ilegal</strong> yang dapat dipidana berdasarkan UU ITE Indonesia.</p>
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+        <div class="text-3xl font-black text-red-500 mb-1">91%</div>
+        <div class="text-xs text-gray-400">Serangan siber dimulai dari phishing</div>
+      </div>
+      <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+        <div class="text-3xl font-black text-amber-400 mb-1">3.4B</div>
+        <div class="text-xs text-gray-400">Email phishing dikirim per hari</div>
+      </div>
+      <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+        <div class="text-3xl font-black text-blue-400 mb-1">$17M</div>
+        <div class="text-xs text-gray-400">Kerugian rata-rata per menit</div>
+      </div>
+      <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+        <div class="text-3xl font-black text-green-400 mb-1">97%</div>
+        <div class="text-xs text-gray-400">Pengguna tidak bisa mengenali phishing</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: APA ITU PHISHING -->
+<section id="phishing" class="py-16 px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="section-label">01 — Dasar</div>
+    <h2 class="text-4xl font-bold mb-4">Apa itu <span class="text-red-500">Phishing?</span></h2>
+    <p class="text-gray-400 max-w-3xl mb-12 text-lg">Phishing adalah teknik penipuan siber di mana penyerang <strong class="text-white">menyamar sebagai entitas terpercaya</strong> (bank, platform media sosial, institusi pemerintah) untuk mencuri data sensitif seperti kata sandi, nomor kartu kredit, dan informasi pribadi.</p>
+
+    <div class="grid md:grid-cols-3 gap-6 mb-16">
+      <div class="attack-card rounded-xl p-6">
+        <div class="w-10 h-10 bg-red-500/20 rounded-lg flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+        </div>
+        <h3 class="font-bold mb-2">Email Palsu</h3>
+        <p class="text-sm text-gray-400">Email tampak berasal dari sumber terpercaya (bank, BRI, Tokopedia) dengan link menuju halaman login palsu.</p>
+      </div>
+      <div class="attack-card rounded-xl p-6">
+        <div class="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+        </div>
+        <h3 class="font-bold mb-2">URL Berbahaya</h3>
+        <p class="text-sm text-gray-400">Link meniru domain asli dengan karakter mirip: bri-bank[.]com, tokopedia-promo[.]net, dll.</p>
+      </div>
+      <div class="attack-card rounded-xl p-6">
+        <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+        </div>
+        <h3 class="font-bold mb-2">Halaman Palsu</h3>
+        <p class="text-sm text-gray-400">Klon sempurna dari website asli yang mengumpulkan kredensial korban secara real-time.</p>
+      </div>
+    </div>
+
+    <!-- HOW IT WORKS TIMELINE -->
+    <div class="mb-6">
+      <h3 class="text-2xl font-bold mb-8">Cara Kerja Serangan Phishing</h3>
+      <div class="space-y-6 max-w-2xl">
+        <div class="timeline-item">
+          <div class="timeline-dot">1</div>
+          <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+            <h4 class="font-semibold mb-1">Reconnaissance (Pengintaian)</h4>
+            <p class="text-sm text-gray-400">Penyerang mengumpulkan info target: nama, email, jabatan, organisasi dari LinkedIn, media sosial, atau data breach publik.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot">2</div>
+          <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+            <h4 class="font-semibold mb-1">Craft Bait (Pembuatan Jebakan)</h4>
+            <p class="text-sm text-gray-400">Membuat email/pesan palsu yang sangat meyakinkan, termasuk domain tipuan, logo, dan urgensi buatan.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot">3</div>
+          <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+            <h4 class="font-semibold mb-1">Delivery (Pengiriman)</h4>
+            <p class="text-sm text-gray-400">Mengirimkan pesan phishing via email massal, SMS, WhatsApp, atau media sosial ke target.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot">4</div>
+          <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+            <h4 class="font-semibold mb-1">Exploitation (Eksploitasi)</h4>
+            <p class="text-sm text-gray-400">Korban mengklik link, diarahkan ke halaman palsu, dan memasukkan data sensitifnya.</p>
+          </div>
+        </div>
+        <div class="timeline-item">
+          <div class="timeline-dot">5</div>
+          <div class="bg-surface2 rounded-xl p-4 border border-gray-800">
+            <h4 class="font-semibold mb-1">Data Harvest & Profit</h4>
+            <p class="text-sm text-gray-400">Data korban dikumpulkan otomatis. Penyerang menggunakannya untuk akses akun, pencurian uang, atau dijual di dark web.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: VARIAN PHISHING -->
+<section id="varians" class="py-16 px-6 bg-surface">
+  <div class="max-w-6xl mx-auto">
+    <div class="section-label">02 — Varian Serangan</div>
+    <h2 class="text-4xl font-bold mb-4">Jenis-Jenis <span class="text-red-500">Serangan Phishing</span></h2>
+    <p class="text-gray-400 max-w-3xl mb-12">Phishing hadir dalam banyak bentuk. Setiap varian memiliki target dan teknik berbeda.</p>
+
+    <!-- TABS -->
+    <div class="mb-8 flex flex-wrap gap-2 border-b border-gray-800 pb-0">
+      <button class="tab-btn active px-4 py-3 text-sm font-medium text-gray-300 border-b-2 border-transparent" onclick="switchTab('email-phish')">Email Phishing</button>
+      <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent" onclick="switchTab('spear-phish')">Spear Phishing</button>
+      <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent" onclick="switchTab('smishing')">Smishing (SMS)</button>
+      <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent" onclick="switchTab('vishing')">Vishing (Telepon)</button>
+      <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent" onclick="switchTab('whaling')">Whaling</button>
+      <button class="tab-btn px-4 py-3 text-sm font-medium text-gray-500 border-b-2 border-transparent" onclick="switchTab('clone-phish')">Clone Phishing</button>
+    </div>
+
+    <!-- EMAIL PHISHING -->
+    <div id="tab-email-phish" class="tab-panel active">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <div>
+          <span class="severity-critical text-xs px-2 py-1 rounded-full mono mb-3 inline-block">KRITIS — Paling Umum</span>
+          <h3 class="text-2xl font-bold mb-3">Email Phishing Massal</h3>
+          <p class="text-gray-400 mb-4">Dikirim ke jutaan alamat email sekaligus, berpura-pura dari institusi terpercaya. Memanfaatkan urgensi dan ketakutan.</p>
+          <div class="space-y-2 mb-6">
+            <div class="threat-bar"><div class="threat-fill" style="width:95%"></div></div>
+            <div class="flex justify-between text-xs text-gray-500 mono"><span>Volume Serangan</span><span>95%</span></div>
+          </div>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Pengirim tampak dari domain resmi</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Klaim darurat: "Akun Anda akan ditutup!"</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Link ke website klon yang identik</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Meminta verifikasi data segera</li>
+          </ul>
+        </div>
+        <div>
+          <!-- Fake email simulation -->
+          <div class="fake-browser">
+            <div class="fake-browser-bar">
+              <div class="dot bg-red-500"></div>
+              <div class="dot bg-yellow-400"></div>
+              <div class="dot bg-green-400"></div>
+              <div class="fake-url">
+                <svg class="w-3 h-3 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                mail.google.com
+              </div>
+            </div>
+            <div class="p-5" style="background:#0f1117;">
+              <div class="border border-gray-700 rounded-lg p-4 mb-3" style="background:#161622;">
+                <div class="flex justify-between mb-3">
+                  <div>
+                    <div class="text-sm font-semibold text-white">BRI Internet Banking</div>
+                    <div class="text-xs text-gray-500 mono">noreply@bri-banking-secure.com</div>
+                  </div>
+                  <div class="text-xs text-gray-600">10:42 AM</div>
+                </div>
+                <div class="text-sm font-bold text-amber-400 mb-2">⚠ PERINGATAN: Verifikasi Akun Diperlukan</div>
+                <div class="text-xs text-gray-400 leading-relaxed mb-4">
+                  Yth. Nasabah,<br><br>
+                  Sistem kami mendeteksi <span class="text-red-400 font-semibold">aktivitas mencurigakan</span> pada akun Anda. Untuk keamanan, Anda <strong class="text-white">wajib memverifikasi</strong> akun dalam <span class="text-red-400">24 jam</span> atau akun akan <strong class="text-red-400">diblokir sementara</strong>.<br><br>
+                  Klik tombol di bawah untuk verifikasi:
+                </div>
+                <button class="w-full py-2 px-4 rounded text-sm font-bold text-white" style="background:#004f9f;">
+                  🔒 Verifikasi Akun Saya Sekarang
+                </button>
+                <div class="mt-3 text-xs text-gray-600 text-center">bri-banking-secure[.]com/verify/2024</div>
+              </div>
+              <div class="warn-box mt-2">
+                <p class="text-xs text-red-300 font-bold mb-1">🚨 TANDA BAHAYA TERDETEKSI:</p>
+                <ul class="text-xs text-gray-400 space-y-1">
+                  <li>✗ Domain palsu: <span class="mono text-red-400">bri-banking-secure.com</span> bukan <span class="mono text-green-400">bri.co.id</span></li>
+                  <li>✗ Tekanan waktu ("24 jam") = manipulasi psikologis</li>
+                  <li>✗ Ancaman ("akun diblokir") untuk memaksa tindakan</li>
+                  <li>✗ Bank asli tidak pernah minta verifikasi via email</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SPEAR PHISHING -->
+    <div id="tab-spear-phish" class="tab-panel">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <div>
+          <span class="severity-critical text-xs px-2 py-1 rounded-full mono mb-3 inline-block">KRITIS — Tertarget</span>
+          <h3 class="text-2xl font-bold mb-3">Spear Phishing</h3>
+          <p class="text-gray-400 mb-4">Serangan yang ditargetkan pada individu atau organisasi tertentu menggunakan informasi personal yang sudah dikumpulkan sebelumnya. Jauh lebih berbahaya dari phishing biasa.</p>
+          <div class="space-y-2 mb-6">
+            <div class="threat-bar"><div class="threat-fill" style="width:85%"></div></div>
+            <div class="flex justify-between text-xs text-gray-500 mono"><span>Tingkat Keberhasilan</span><span>85%</span></div>
+          </div>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Menggunakan nama asli korban</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Menyebut rekan kerja, proyek, atau konteks spesifik</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Data dari LinkedIn, media sosial, atau breach</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Tampak datang dari atasan atau rekanan</li>
+          </ul>
+        </div>
+        <div>
+          <div class="fake-browser">
+            <div class="fake-browser-bar">
+              <div class="dot bg-red-500"></div>
+              <div class="dot bg-yellow-400"></div>
+              <div class="dot bg-green-400"></div>
+              <div class="fake-url">mail.google.com</div>
+            </div>
+            <div class="p-5" style="background:#0f1117;">
+              <div class="border border-gray-700 rounded-lg p-4" style="background:#161622;">
+                <div class="flex justify-between mb-3">
+                  <div>
+                    <div class="text-sm font-semibold text-white">Budi Santoso (CEO)</div>
+                    <div class="text-xs text-gray-500 mono">budi.santoso@perusahaan-anda.net</div>
+                  </div>
+                  <div class="text-xs text-gray-600">09:15 AM</div>
+                </div>
+                <div class="text-sm font-bold text-white mb-2">Re: Proyek Alpha — Transfer Dana Urgent</div>
+                <div class="text-xs text-gray-400 leading-relaxed mb-4">
+                  Halo <span class="text-white font-semibold">Rina</span>,<br><br>
+                  Seperti yang kita bahas di rapat Senin kemarin, saya perlu kamu segera memproses transfer untuk <span class="text-white">Proyek Alpha</span> ke rekening vendor baru kami.<br><br>
+                  Jumlah: <span class="text-amber-400 font-bold">Rp 450.000.000</span><br>
+                  Bank BCA: <span class="mono text-white">1234-5678-9012</span><br><br>
+                  Jangan beritahu tim finance dulu, ini bersifat <span class="text-red-400 font-semibold">RAHASIA</span>. Hubungi saya hanya via email ini.
+                </div>
+              </div>
+              <div class="warn-box mt-2">
+                <p class="text-xs text-red-300 font-bold mb-1">🚨 TANDA BAHAYA SPEAR PHISHING:</p>
+                <ul class="text-xs text-gray-400 space-y-1">
+                  <li>✗ Domain mirip tapi beda: <span class="mono text-red-400">perusahaan-anda.net</span></li>
+                  <li>✗ Menyebut nama, rapat, proyek spesifik = sudah riset</li>
+                  <li>✗ Minta rahasiakan dari finance = bypass prosedur</li>
+                  <li>✗ Transfer besar ke rekening baru tanpa verifikasi</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SMISHING -->
+    <div id="tab-smishing" class="tab-panel">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <div>
+          <span class="severity-high text-xs px-2 py-1 rounded-full mono mb-3 inline-block">TINGGI — Via SMS/WhatsApp</span>
+          <h3 class="text-2xl font-bold mb-3">Smishing (SMS Phishing)</h3>
+          <p class="text-gray-400 mb-4">Phishing melalui pesan teks SMS atau WhatsApp. Memanfaatkan kepercayaan orang terhadap notifikasi di ponsel mereka.</p>
+          <div class="space-y-2 mb-6">
+            <div class="threat-bar"><div class="threat-fill" style="width:70%"></div></div>
+            <div class="flex justify-between text-xs text-gray-500 mono"><span>Tingkat Klik</span><span>70%</span></div>
+          </div>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>SMS paket kiriman J&T/JNE/Shopee</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Notifikasi hadiah palsu dari marketplace</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Peringatan akun terblokir</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Link pendek (bit.ly) menyembunyikan tujuan asli</li>
+          </ul>
+        </div>
+        <div class="space-y-4">
+          <!-- Fake SMS -->
+          <div style="background:#1c1c2e; border-radius:20px; padding:24px; max-width:320px; margin:0 auto;">
+            <div class="text-xs text-gray-500 text-center mb-4 mono">Pesan SMS — 14:23</div>
+            <div style="background:#2a2a3e; border-radius:12px 12px 4px 12px; padding:12px 14px; margin-bottom:8px;">
+              <div class="text-xs text-green-400 font-bold mb-1">Shopee Official</div>
+              <div class="text-xs text-gray-300 leading-relaxed">
+                Selamat! Anda memenangkan <span class="text-amber-400 font-bold">iPhone 15 Pro</span> dari undian belanja Shopee. Klaim hadiah Anda sebelum <span class="text-red-400">23:59</span> hari ini:<br>
+                <span class="mono text-blue-400 text-xs">bit.ly/shopee-hd2024</span>
+              </div>
+            </div>
+            <div class="warn-box mt-3">
+              <p class="text-xs text-red-300 font-bold mb-1">🚨 TANDA BAHAYA:</p>
+              <ul class="text-xs text-gray-400 space-y-1">
+                <li>✗ Hadiah tak terduga tanpa ikut lomba</li>
+                <li>✗ Link bit.ly menyembunyikan URL asli</li>
+                <li>✗ Batas waktu palsu untuk menciptakan panik</li>
+                <li>✗ Shopee resmi tidak kirim link via SMS biasa</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VISHING -->
+    <div id="tab-vishing" class="tab-panel">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <div>
+          <span class="severity-high text-xs px-2 py-1 rounded-full mono mb-3 inline-block">TINGGI — Via Telepon</span>
+          <h3 class="text-2xl font-bold mb-3">Vishing (Voice Phishing)</h3>
+          <p class="text-gray-400 mb-4">Penipuan via telepon di mana penyerang berpura-pura menjadi customer service bank, OJK, polisi, atau pejabat resmi lainnya.</p>
+          <div class="space-y-2 mb-6">
+            <div class="threat-bar"><div class="threat-fill" style="width:60%"></div></div>
+            <div class="flex justify-between text-xs text-gray-500 mono"><span>Efektivitas pada lansia</span><span>60%</span></div>
+          </div>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Pura-pura jadi CS Bank BRI/BCA/Mandiri</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Spoof nomor telepon resmi bank</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Meminta OTP dengan alasan keamanan</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Menggunakan AI voice cloning (2024+)</li>
+          </ul>
+        </div>
+        <div>
+          <div style="background:#1c1c2e; border-radius:16px; padding:24px; border: 1px solid #333;">
+            <div class="text-xs text-gray-500 mb-3 text-center">Simulasi Percakapan Vishing</div>
+            <div class="space-y-3">
+              <div style="background:#1e2a1e; border-radius:8px; padding:12px;">
+                <div class="text-xs text-green-400 font-bold mb-1">👤 Penyerang (berpura-pura CS BCA):</div>
+                <div class="text-xs text-gray-300">"Selamat siang, saya dari Customer Service BCA. Kami mendeteksi transaksi mencurigakan Rp 12 juta dari akun Anda. Apakah Anda melakukan transaksi ini?"</div>
+              </div>
+              <div style="background:#1e1e2a; border-radius:8px; padding:12px;">
+                <div class="text-xs text-blue-400 font-bold mb-1">😰 Korban:</div>
+                <div class="text-xs text-gray-300">"Tidak! Saya tidak melakukan transaksi itu!"</div>
+              </div>
+              <div style="background:#1e2a1e; border-radius:8px; padding:12px;">
+                <div class="text-xs text-green-400 font-bold mb-1">👤 Penyerang:</div>
+                <div class="text-xs text-gray-300">"Baik, untuk membatalkan transaksi tersebut, saya perlu memverifikasi identitas Anda. Tolong sebutkan 6 digit <span class="text-red-400 font-bold">kode OTP</span> yang baru saja dikirim ke nomor Anda..."</div>
+              </div>
+            </div>
+            <div class="warn-box mt-3">
+              <p class="text-xs text-red-300 font-bold mb-1">🚨 INGAT:</p>
+              <p class="text-xs text-gray-400"><strong class="text-white">Bank TIDAK PERNAH</strong> meminta OTP, PIN, atau password melalui telepon. OTP adalah rahasia yang hanya untuk Anda sendiri.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- WHALING -->
+    <div id="tab-whaling" class="tab-panel">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <div>
+          <span class="severity-critical text-xs px-2 py-1 rounded-full mono mb-3 inline-block">KRITIS — Target Eksekutif</span>
+          <h3 class="text-2xl font-bold mb-3">Whaling</h3>
+          <p class="text-gray-400 mb-4">Varian spear phishing yang menargetkan eksekutif C-level (CEO, CFO, COO). Serangan sangat terencana dengan potensi kerugian besar.</p>
+          <div class="space-y-2 mb-6">
+            <div class="threat-bar"><div class="threat-fill" style="width:40%"></div></div>
+            <div class="flex justify-between text-xs text-gray-500 mono"><span>Frekuensi (tapi dampak besar)</span><span>40%</span></div>
+          </div>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Target: CEO, CFO, direktur senior</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Pura-pura jadi auditor, regulator, hukum</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Konteks bisnis sangat spesifik dan meyakinkan</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Teknik BEC (Business Email Compromise)</li>
+          </ul>
+        </div>
+        <div>
+          <div class="info-box rounded-xl">
+            <h4 class="text-blue-400 font-bold text-sm mb-3">📊 Kasus Nyata BEC (Business Email Compromise)</h4>
+            <div class="space-y-3 text-xs text-gray-400">
+              <div class="bg-surface2 rounded-lg p-3">
+                <div class="text-white font-semibold mb-1">Facebook & Google (2013-2015)</div>
+                <p>Kerugian $123 juta karena email palsu dari vendor fiktif yang meyakinkan finance memproses pembayaran.</p>
+              </div>
+              <div class="bg-surface2 rounded-lg p-3">
+                <div class="text-white font-semibold mb-1">Perusahaan Indonesia (2022)</div>
+                <p>Beberapa perusahaan BUMN mengalami kerugian miliaran rupiah akibat serangan BEC yang memanfaatkan kepercayaan eksekutif.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CLONE PHISHING -->
+    <div id="tab-clone-phish" class="tab-panel">
+      <div class="grid md:grid-cols-2 gap-8 items-start">
+        <div>
+          <span class="severity-high text-xs px-2 py-1 rounded-full mono mb-3 inline-block">TINGGI — Duplikasi Email</span>
+          <h3 class="text-2xl font-bold mb-3">Clone Phishing</h3>
+          <p class="text-gray-400 mb-4">Menduplikasi email legitim yang pernah diterima korban, mengganti link/lampiran dengan versi berbahaya, lalu mengirim ulang seolah email "yang diperbarui".</p>
+          <div class="space-y-2 mb-6">
+            <div class="threat-bar"><div class="threat-fill" style="width:75%"></div></div>
+            <div class="flex justify-between text-xs text-gray-500 mono"><span>Tingkat Kepercayaan Korban</span><span>75%</span></div>
+          </div>
+          <ul class="space-y-2 text-sm text-gray-400">
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Konten identik dengan email asli</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Subject: "Re:" atau "Updated:" untuk terlihat lanjutan</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Hanya link/lampiran yang diganti</li>
+            <li class="flex gap-2"><span class="text-red-500 mt-0.5">▸</span>Pengirim hampir identik dengan aslinya</li>
+          </ul>
+        </div>
+        <div>
+          <div class="bg-surface2 rounded-xl p-5 border border-gray-700">
+            <h4 class="font-semibold mb-4 text-sm">Perbandingan Email Asli vs Klon</h4>
+            <div class="grid grid-cols-2 gap-3 text-xs">
+              <div>
+                <div class="text-green-400 font-bold mb-2">✓ Email ASLI</div>
+                <div class="bg-green-950/30 border border-green-800/30 rounded-lg p-3 space-y-2">
+                  <div><span class="text-gray-500">Dari:</span> <span class="text-green-400 mono">info@tokopedia.com</span></div>
+                  <div><span class="text-gray-500">Subject:</span> Konfirmasi Pesanan #12345</div>
+                  <div><span class="text-gray-500">Link:</span> <span class="text-green-400 mono">tokopedia.com/order</span></div>
+                </div>
+              </div>
+              <div>
+                <div class="text-red-400 font-bold mb-2">✗ Email KLON</div>
+                <div class="bg-red-950/30 border border-red-800/30 rounded-lg p-3 space-y-2">
+                  <div><span class="text-gray-500">Dari:</span> <span class="text-red-400 mono">info@tokoped1a.com</span></div>
+                  <div><span class="text-gray-500">Subject:</span> Re: Konfirmasi Pesanan #12345</div>
+                  <div><span class="text-gray-500">Link:</span> <span class="text-red-400 mono">t0kopedia.com/order</span></div>
+                </div>
+              </div>
+            </div>
+            <div class="mt-4 text-xs text-gray-500 italic">Perbedaan hanya pada satu karakter di domain — sangat mudah terlewat!</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: SOCIAL ENGINEERING -->
+<section id="social-eng" class="py-16 px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="section-label">03 — Manipulasi Psikologis</div>
+    <h2 class="text-4xl font-bold mb-4">Teknik <span class="text-red-500">Social Engineering</span></h2>
+    <p class="text-gray-400 max-w-3xl mb-12">Social engineering adalah seni memanipulasi manusia agar melakukan tindakan atau membocorkan informasi rahasia. Ini adalah lapisan psikologis di atas serangan teknis.</p>
+
+    <!-- PSYCHOLOGICAL TRIGGERS -->
+    <div class="mb-14">
+      <h3 class="text-2xl font-bold mb-6">6 Pemicu Psikologis yang Dieksploitasi</h3>
+      <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+
+        <div class="attack-card rounded-xl p-5">
+          <div class="text-3xl mb-3">⏰</div>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="font-bold">Urgency (Urgensi)</h4>
+            <span class="severity-critical text-xs px-2 py-0.5 rounded-full mono">SANGAT EFEKTIF</span>
+          </div>
+          <p class="text-sm text-gray-400 mb-3">Menciptakan tekanan waktu agar korban bertindak tanpa berpikir panjang.</p>
+          <div class="code-block text-xs">
+            <span class="comment">// Contoh kalimat urgency:</span><br>
+            <span class="string">"Akun Anda akan diblokir dalam 2 jam!"</span><br>
+            <span class="string">"Penawaran berakhir hari ini!"</span><br>
+            <span class="string">"Segera konfirmasi atau pesanan dibatalkan"</span>
+          </div>
+        </div>
+
+        <div class="attack-card rounded-xl p-5">
+          <div class="text-3xl mb-3">😨</div>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="font-bold">Fear (Ketakutan)</h4>
+            <span class="severity-critical text-xs px-2 py-0.5 rounded-full mono">SANGAT EFEKTIF</span>
+          </div>
+          <p class="text-sm text-gray-400 mb-3">Ancaman kehilangan uang, akun, atau reputasi membuat orang panik dan ceroboh.</p>
+          <div class="code-block text-xs">
+            <span class="comment">// Contoh kalimat fear:</span><br>
+            <span class="string">"Kartu kredit Anda terdeteksi fraud"</span><br>
+            <span class="string">"Akun Anda diretas dari lokasi asing"</span><br>
+            <span class="string">"Polisi akan menghubungi Anda jika..."</span>
+          </div>
+        </div>
+
+        <div class="attack-card rounded-xl p-5">
+          <div class="text-3xl mb-3">🎁</div>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="font-bold">Greed (Keserakahan)</h4>
+            <span class="severity-high text-xs px-2 py-0.5 rounded-full mono">EFEKTIF</span>
+          </div>
+          <p class="text-sm text-gray-400 mb-3">Iming-iming hadiah, uang, atau kesempatan eksklusif melemahkan kewaspadaan.</p>
+          <div class="code-block text-xs">
+            <span class="comment">// Contoh kalimat greed:</span><br>
+            <span class="string">"Anda memenangkan Rp 100 juta!"</span><br>
+            <span class="string">"Investasi dengan return 50%/bulan"</span><br>
+            <span class="string">"Hadiah iPhone untuk 100 responden"</span>
+          </div>
+        </div>
+
+        <div class="attack-card rounded-xl p-5">
+          <div class="text-3xl mb-3">🏛️</div>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="font-bold">Authority (Otoritas)</h4>
+            <span class="severity-high text-xs px-2 py-0.5 rounded-full mono">EFEKTIF</span>
+          </div>
+          <p class="text-sm text-gray-400 mb-3">Menggunakan nama/identitas pejabat, institusi, atau atasan untuk mendapatkan kepatuhan.</p>
+          <div class="code-block text-xs">
+            <span class="comment">// Contoh otoritas palsu:</span><br>
+            <span class="string">"Saya dari OJK/Kominfo/KPK"</span><br>
+            <span class="string">"Perintah langsung dari Direktur Utama"</span><br>
+            <span class="string">"Tim IT Security perusahaan Anda"</span>
+          </div>
+        </div>
+
+        <div class="attack-card rounded-xl p-5">
+          <div class="text-3xl mb-3">🤝</div>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="font-bold">Trust (Kepercayaan)</h4>
+            <span class="severity-high text-xs px-2 py-0.5 rounded-full mono">EFEKTIF</span>
+          </div>
+          <p class="text-sm text-gray-400 mb-3">Membangun hubungan selama berminggu-minggu/bulan sebelum melakukan serangan (long con).</p>
+          <div class="code-block text-xs">
+            <span class="comment">// Contoh building trust:</span><br>
+            <span class="string">Teman baru di media sosial selama 3 bulan</span><br>
+            <span class="string">Kolega baru yang ramah di kantor</span><br>
+            <span class="string">"Kenalan" dari grup komunitas online</span>
+          </div>
+        </div>
+
+        <div class="attack-card rounded-xl p-5">
+          <div class="text-3xl mb-3">👥</div>
+          <div class="flex items-center gap-2 mb-2">
+            <h4 class="font-bold">Social Proof</h4>
+            <span class="severity-medium text-xs px-2 py-0.5 rounded-full mono">SEDANG</span>
+          </div>
+          <p class="text-sm text-gray-400 mb-3">Memanipulasi dengan menunjukkan bahwa "orang lain juga melakukannya" untuk mengurangi kewaspadaan.</p>
+          <div class="code-block text-xs">
+            <span class="comment">// Contoh social proof:</span><br>
+            <span class="string">"100.000 pengguna sudah klaim hadiah"</span><br>
+            <span class="string">"Teman Anda juga sudah daftar"</span><br>
+            <span class="string">"Rating 4.9/5 dari 50rb review"</span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ADVANCED TECHNIQUES -->
+    <div>
+      <h3 class="text-2xl font-bold mb-6">Teknik Lanjutan Social Engineering</h3>
+      <div class="space-y-3">
+
+        <div class="accordion-item attack-card rounded-xl overflow-hidden">
+          <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🎭</span>
+              <div>
+                <div class="font-bold">Pretexting</div>
+                <div class="text-sm text-gray-400">Membuat skenario palsu yang meyakinkan</div>
+              </div>
+            </div>
+            <span class="accordion-icon text-red-500 text-xl font-light">+</span>
+          </button>
+          <div class="accordion-body">
+            <div class="px-5 pb-5">
+              <div class="grid md:grid-cols-2 gap-4">
+                <div class="text-sm text-gray-400">
+                  <p class="mb-3">Penyerang menciptakan identitas atau skenario palsu yang sangat detail untuk mendapatkan kepercayaan korban. Berbeda dari phishing biasa, pretexting melibatkan riset mendalam dan backstory yang konsisten.</p>
+                  <ul class="space-y-1">
+                    <li class="flex gap-2"><span class="text-red-500">▸</span>Berpura-pura jadi auditor eksternal yang butuh akses</li>
+                    <li class="flex gap-2"><span class="text-red-500">▸</span>Pura-pura jadi vendor IT yang perlu maintenance</li>
+                    <li class="flex gap-2"><span class="text-red-500">▸</span>Menyamar sebagai jurnalis atau peneliti</li>
+                    <li class="flex gap-2"><span class="text-red-500">▸</span>Fake profile media sosial yang sudah aktif berbulan-bulan</li>
+                  </ul>
+                </div>
+                <div class="info-box rounded-lg text-xs text-gray-400">
+                  <p class="font-bold text-blue-400 mb-2">📌 Studi Kasus:</p>
+                  <p>Penyerang menelpon helpdesk IT sambil mengklaim sebagai karyawan baru yang lupa password. Dengan menyebutkan nama manajer asli (yang didapat dari LinkedIn) dan detail onboarding yang meyakinkan, mereka berhasil mendapat akses sistem.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item attack-card rounded-xl overflow-hidden">
+          <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🪤</span>
+              <div>
+                <div class="font-bold">Baiting</div>
+                <div class="text-sm text-gray-400">Umpan fisik dan digital</div>
+              </div>
+            </div>
+            <span class="accordion-icon text-red-500 text-xl font-light">+</span>
+          </button>
+          <div class="accordion-body">
+            <div class="px-5 pb-5">
+              <div class="grid md:grid-cols-2 gap-4">
+                <div class="text-sm text-gray-400">
+                  <p class="mb-3">Meninggalkan "umpan" yang menarik untuk membuat korban mengambil tindakan berbahaya tanpa sadar.</p>
+                  <div class="space-y-3">
+                    <div class="bg-surface2 rounded-lg p-3">
+                      <div class="text-white font-semibold text-xs mb-1">🔌 USB Baiting (Fisik)</div>
+                      <p class="text-xs">Meninggalkan USB flash drive di parkiran kantor. Karyawan penasaran mencolokkannya ke komputer kerja → malware otomatis terinstall.</p>
+                    </div>
+                    <div class="bg-surface2 rounded-lg p-3">
+                      <div class="text-white font-semibold text-xs mb-1">🎬 Digital Baiting</div>
+                      <p class="text-xs">Link download film/software gratis yang sebenarnya mengandung malware atau mencuri kredensial akun.</p>
+                    </div>
+                  </div>
+                </div>
+                <div class="warn-box rounded-lg text-xs text-gray-400">
+                  <p class="font-bold text-red-400 mb-2">⚠ Proteksi Baiting:</p>
+                  <ul class="space-y-1">
+                    <li>• Jangan pernah mencolok USB yang ditemukan</li>
+                    <li>• Hindari download dari sumber tidak terpercaya</li>
+                    <li>• Verifikasi software lewat situs resmi</li>
+                    <li>• Nonaktifkan autorun/autoplay di Windows</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item attack-card rounded-xl overflow-hidden">
+          <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🚪</span>
+              <div>
+                <div class="font-bold">Tailgating / Piggybacking</div>
+                <div class="text-sm text-gray-400">Akses fisik tanpa otorisasi</div>
+              </div>
+            </div>
+            <span class="accordion-icon text-red-500 text-xl font-light">+</span>
+          </button>
+          <div class="accordion-body">
+            <div class="px-5 pb-5">
+              <div class="text-sm text-gray-400">
+                <p class="mb-3">Teknik fisik di mana penyerang mengikuti karyawan yang terotorisasi masuk ke area terbatas. Memanfaatkan kesopanan alami manusia (membukakan pintu untuk orang di belakang).</p>
+                <div class="grid md:grid-cols-3 gap-3">
+                  <div class="bg-surface2 rounded-lg p-3">
+                    <div class="text-white font-semibold text-xs mb-1">Skenario 1</div>
+                    <p class="text-xs">Membawa kardus besar pura-pura delivery, tangan penuh, meminta karyawan membukakan pintu akses.</p>
+                  </div>
+                  <div class="bg-surface2 rounded-lg p-3">
+                    <div class="text-white font-semibold text-xs mb-1">Skenario 2</div>
+                    <p class="text-xs">Berpakaian seperti teknisi atau pegawai kebersihan untuk masuk ke area server room.</p>
+                  </div>
+                  <div class="bg-surface2 rounded-lg p-3">
+                    <div class="text-white font-semibold text-xs mb-1">Skenario 3</div>
+                    <p class="text-xs">Mengikuti group karyawan saat jam makan siang ketika pintu dibuka bersamaan.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item attack-card rounded-xl overflow-hidden">
+          <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🤖</span>
+              <div>
+                <div class="font-bold">AI-Powered Social Engineering (2024+)</div>
+                <div class="text-sm text-gray-400">Deepfake, voice cloning, AI chatbot</div>
+              </div>
+            </div>
+            <span class="accordion-icon text-red-500 text-xl font-light">+</span>
+          </button>
+          <div class="accordion-body">
+            <div class="px-5 pb-5">
+              <div class="grid md:grid-cols-2 gap-4">
+                <div class="text-sm text-gray-400 space-y-3">
+                  <div class="bg-red-950/30 border border-red-800/30 rounded-lg p-3">
+                    <div class="text-red-400 font-semibold text-xs mb-1">🎥 Video Deepfake</div>
+                    <p class="text-xs">Video call palsu menggunakan wajah CEO asli. Petugas keuangan HK Arup (2024) ditransfer $25 juta setelah video call dengan "CFO" deepfake.</p>
+                  </div>
+                  <div class="bg-red-950/30 border border-red-800/30 rounded-lg p-3">
+                    <div class="text-red-400 font-semibold text-xs mb-1">🎙️ Voice Cloning</div>
+                    <p class="text-xs">Hanya butuh 3 detik audio untuk mengkloning suara seseorang. Digunakan dalam serangan vishing yang sangat meyakinkan.</p>
+                  </div>
+                  <div class="bg-red-950/30 border border-red-800/30 rounded-lg p-3">
+                    <div class="text-red-400 font-semibold text-xs mb-1">💬 AI Chatbot Phishing</div>
+                    <p class="text-xs">Chatbot AI yang sangat meyakinkan untuk melakukan social engineering dalam skala besar secara otomatis.</p>
+                  </div>
+                </div>
+                <div class="warn-box rounded-lg text-xs text-gray-400">
+                  <p class="font-bold text-red-400 mb-2">🛡️ Cara Menghadapi AI Attacks:</p>
+                  <ul class="space-y-1">
+                    <li>• Buat "code word" rahasia dengan keluarga/kolega</li>
+                    <li>• Selalu verifikasi lewat saluran terpisah</li>
+                    <li>• Waspada pada request transfer atau data sensitif via video call saja</li>
+                    <li>• Perhatikan detail aneh: background, suara artificial, lag berlebihan</li>
+                    <li>• Terapkan prosedur dual-approval untuk transaksi besar</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="accordion-item attack-card rounded-xl overflow-hidden">
+          <button class="accordion-toggle w-full flex items-center justify-between p-5 text-left" onclick="toggleAccordion(this)">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">🗑️</span>
+              <div>
+                <div class="font-bold">Dumpster Diving</div>
+                <div class="text-sm text-gray-400">Mencuri informasi dari sampah fisik</div>
+              </div>
+            </div>
+            <span class="accordion-icon text-red-500 text-xl font-light">+</span>
+          </button>
+          <div class="accordion-body">
+            <div class="px-5 pb-5">
+              <div class="text-sm text-gray-400">
+                <p class="mb-3">Mengais informasi berharga dari sampah yang dibuang: dokumen perusahaan, catatan password, tagihan, printout email internal, bagan organisasi, dsb.</p>
+                <div class="success-box rounded-lg">
+                  <p class="text-green-400 font-bold text-xs mb-2">✓ Pencegahan:</p>
+                  <ul class="text-xs space-y-1">
+                    <li>• Selalu shred (hancurkan) dokumen sebelum dibuang</li>
+                    <li>• Jangan buang catatan yang berisi angka/kode apapun</li>
+                    <li>• Terapkan kebijakan "clear desk" di kantor</li>
+                    <li>• Pisahkan tempat sampah dokumen sensitif dengan limbah biasa</li>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: DETEKSI -->
+<section id="deteksi" class="py-16 px-6 bg-surface">
+  <div class="max-w-6xl mx-auto">
+    <div class="section-label">04 — Identifikasi</div>
+    <h2 class="text-4xl font-bold mb-4">Cara <span class="text-red-500">Mengenali</span> Serangan</h2>
+    <p class="text-gray-400 max-w-3xl mb-12">Kemampuan mengenali tanda-tanda serangan adalah pertahanan pertama yang paling efektif.</p>
+
+    <div class="grid md:grid-cols-2 gap-8">
+      <!-- Red flags email -->
+      <div>
+        <h3 class="font-bold mb-4 flex items-center gap-2">
+          <span class="text-red-500">🚩</span> Red Flags pada Email
+        </h3>
+        <div class="space-y-2">
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Domain pengirim tidak cocok dengan domain resmi organisasi</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Tata bahasa/ejaan yang buruk atau canggung</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Tekanan waktu atau ancaman yang tidak wajar</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Meminta informasi sensitif (password, OTP, CVV)</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Link yang di-hover menunjukkan URL mencurigakan</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Lampiran tak terduga (.exe, .zip, .doc dengan macro)</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Salam generik ("Dear Customer") bukan nama asli</div>
+          </div>
+          <div class="check-item">
+            <div class="check-box" onclick="toggleCheck(this)"></div>
+            <div class="text-sm text-gray-300">Request yang tidak sesuai prosedur normal</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- URL analysis -->
+      <div>
+        <h3 class="font-bold mb-4 flex items-center gap-2">
+          <span class="text-amber-500">🔍</span> Cara Analisis URL
+        </h3>
+        <div class="bg-surface2 rounded-xl p-5 border border-gray-700 mb-4">
+          <div class="text-xs text-gray-500 mono mb-2">Anatomi URL:</div>
+          <div class="code-block text-sm mb-4">
+            <span class="func">https://</span><span class="keyword">www</span>.<span class="string">bank-bri</span>.<span class="keyword">co.id</span><span class="comment">/login</span>
+          </div>
+          <div class="space-y-2 text-xs text-gray-400">
+            <div class="flex gap-2"><span class="text-green-400 font-mono">✓</span> <strong class="text-white">Protocol:</strong> https:// (bukan http://)</div>
+            <div class="flex gap-2"><span class="text-green-400 font-mono">✓</span> <strong class="text-white">Domain:</strong> bri.co.id bukan bri-secure.com</div>
+            <div class="flex gap-2"><span class="text-green-400 font-mono">✓</span> <strong class="text-white">TLD:</strong> .co.id (Indonesia) bukan .com/.net asing</div>
+          </div>
+        </div>
+
+        <div class="bg-red-950/20 border border-red-900/30 rounded-xl p-5">
+          <div class="text-xs text-gray-500 mono mb-2">URL Phishing Umum Indonesia:</div>
+          <div class="space-y-2 text-xs mono">
+            <div class="flex gap-2 items-center"><span class="text-red-500">✗</span><span class="text-red-400">bri-online-banking.com</span></div>
+            <div class="flex gap-2 items-center"><span class="text-red-500">✗</span><span class="text-red-400">tokopedia-promo-2024.net</span></div>
+            <div class="flex gap-2 items-center"><span class="text-red-500">✗</span><span class="text-red-400">shopee-hadiah-cuma2.id</span></div>
+            <div class="flex gap-2 items-center"><span class="text-red-500">✗</span><span class="text-red-400">paypal.com-secure-login.ru</span></div>
+            <div class="flex gap-2 items-center"><span class="text-red-500">✗</span><span class="text-red-400">bri.co.id.login-secure.xyz</span></div>
+          </div>
+          <div class="mt-3 text-xs text-gray-500 italic">Domain resmi bank Indonesia selalu berakhir dengan .co.id</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- OSINT data exposure -->
+    <div class="mt-12">
+      <h3 class="text-2xl font-bold mb-6">Informasi yang Dieksploitasi Penyerang</h3>
+      <div class="grid md:grid-cols-4 gap-4">
+        <div class="bg-surface2 rounded-xl p-4 border border-gray-700 text-center">
+          <div class="text-3xl mb-2">📧</div>
+          <div class="text-sm font-semibold mb-1">Alamat Email</div>
+          <div class="text-xs text-gray-500">Dari LinkedIn, website perusahaan, data breach</div>
+        </div>
+        <div class="bg-surface2 rounded-xl p-4 border border-gray-700 text-center">
+          <div class="text-3xl mb-2">📱</div>
+          <div class="text-sm font-semibold mb-1">Nomor HP</div>
+          <div class="text-xs text-gray-500">Dari media sosial, marketplace, formulir online</div>
+        </div>
+        <div class="bg-surface2 rounded-xl p-4 border border-gray-700 text-center">
+          <div class="text-3xl mb-2">💼</div>
+          <div class="text-sm font-semibold mb-1">Data Pekerjaan</div>
+          <div class="text-xs text-gray-500">LinkedIn: nama atasan, proyek, divisi</div>
+        </div>
+        <div class="bg-surface2 rounded-xl p-4 border border-gray-700 text-center">
+          <div class="text-3xl mb-2">🗓️</div>
+          <div class="text-sm font-semibold mb-1">Rutinitas & Kebiasaan</div>
+          <div class="text-xs text-gray-500">Instagram, Twitter: lokasi, jadwal, preferensi</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- SECTION: PERLINDUNGAN -->
+<section id="perlindungan" class="py-16 px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="section-label">05 — Proteksi</div>
+    <h2 class="text-4xl font-bold mb-4">Langkah <span class="text-green-500">Perlindungan</span></h2>
+    <p class="text-gray-400 max-w-3xl mb-12">Pertahanan berlapis (defense in depth) adalah strategi terbaik. Tidak ada satu solusi yang cukup.</p>
+
+    <div class="grid md:grid-cols-3 gap-6 mb-12">
+      <div class="bg-surface2 rounded-xl p-6 border border-green-900/30">
+        <div class="w-10 h-10 bg-green-500/20 rounded-lg flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+        </div>
+        <h3 class="font-bold mb-3 text-green-400">Teknis</h3>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Aktifkan 2FA/MFA di semua akun penting</li>
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Gunakan password manager (Bitwarden, 1Password)</li>
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Update software dan OS secara rutin</li>
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Pasang antivirus dengan web protection</li>
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Gunakan DNS filter (Cloudflare 1.1.1.1)</li>
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Aktifkan email spam filter</li>
+          <li class="flex gap-2"><span class="text-green-500">✓</span>Verifikasi link sebelum diklik (hover dulu)</li>
+        </ul>
+      </div>
+
+      <div class="bg-surface2 rounded-xl p-6 border border-blue-900/30">
+        <div class="w-10 h-10 bg-blue-500/20 rounded-lg flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.746 0 3.332.477 4.5 1.253v13C19.832 18.477 18.246 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <h3 class="font-bold mb-3 text-blue-400">Edukasi & Kesadaran</h3>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li class="flex gap-2"><span class="text-blue-500">✓</span>Ikuti pelatihan keamanan siber berkala</li>
+          <li class="flex gap-2"><span class="text-blue-500">✓</span>Lakukan simulasi phishing internal</li>
+          <li class="flex gap-2"><span class="text-blue-500">✓</span>Verifikasi selalu lewat saluran terpisah</li>
+          <li class="flex gap-2"><span class="text-blue-500">✓</span>Jangan bagikan info sensitif tanpa konfirmasi</li>
+          <li class="flex gap-2"><span class="text-blue-500">✓</span>Waspadai tekanan emosional saat menerima request</li>
+          <li class="flex gap-2"><span class="text-blue-500">✓</span>Terapkan prinsip "trust but verify"</li>
+        </ul>
+      </div>
+
+      <div class="bg-surface2 rounded-xl p-6 border border-amber-900/30">
+        <div class="w-10 h-10 bg-amber-500/20 rounded-lg flex items-center justify-center mb-4">
+          <svg class="w-5 h-5 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        </div>
+        <h3 class="font-bold mb-3 text-amber-400">Organisasi & Prosedur</h3>
+        <ul class="space-y-2 text-sm text-gray-400">
+          <li class="flex gap-2"><span class="text-amber-500">✓</span>Terapkan kebijakan zero trust</li>
+          <li class="flex gap-2"><span class="text-amber-500">✓</span>Dual approval untuk transaksi besar</li>
+          <li class="flex gap-2"><span class="text-amber-500">✓</span>Laporkan insiden ke tim IT/CSIRT</li>
+          <li class="flex gap-2"><span class="text-amber-500">✓</span>Backup data secara berkala (3-2-1 rule)</li>
+          <li class="flex gap-2"><span class="text-amber-500">✓</span>Monitoring email dan login yang mencurigakan</li>
+          <li class="flex gap-2"><span class="text-amber-500">✓</span>Prosedur verifikasi identitas yang ketat</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- If you're a victim -->
+    <div class="bg-red-950/20 border border-red-900/30 rounded-2xl p-8">
+      <h3 class="text-2xl font-bold mb-6 text-red-400">🆘 Jika Anda Sudah Menjadi Korban</h3>
+      <div class="grid md:grid-cols-2 gap-8">
+        <div>
+          <h4 class="font-semibold mb-4">Langkah Segera (dalam menit pertama):</h4>
+          <div class="space-y-3">
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#ef4444; color:#ef4444;">1</div>
+              <p class="text-sm text-gray-300 pt-0.5"><strong class="text-white">Ganti password segera</strong> di semua akun yang terdampak, mulai dari email utama</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#ef4444; color:#ef4444;">2</div>
+              <p class="text-sm text-gray-300 pt-0.5"><strong class="text-white">Hubungi bank/platform</strong> terkait untuk memblokir kartu atau akun yang terekspos</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#ef4444; color:#ef4444;">3</div>
+              <p class="text-sm text-gray-300 pt-0.5"><strong class="text-white">Aktifkan 2FA</strong> di semua akun yang bisa diselamatkan</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#ef4444; color:#ef4444;">4</div>
+              <p class="text-sm text-gray-300 pt-0.5"><strong class="text-white">Scan perangkat</strong> dengan antivirus terpercaya</p>
+            </div>
+            <div class="timeline-item">
+              <div class="timeline-dot" style="border-color:#ef4444; color:#ef4444;">5</div>
+              <p class="text-sm text-gray-300 pt-0.5"><strong class="text-white">Dokumentasikan bukti</strong>: screenshot, email, URL, percakapan</p>
+            </div>
+          </div>
+        </div>
+        <div>
+          <h4 class="font-semibold mb-4">Laporkan Ke:</h4>
+          <div class="space-y-3">
+            <div class="bg-surface2 rounded-lg p-4">
+              <div class="font-semibold text-sm mb-1">🏛️ BSSN (Badan Siber & Sandi Negara)</div>
+              <div class="text-xs text-gray-400 mono"><a href="https://www.bssn.go.id/" class="text-blue-400 hover:underline">bssn.go.id</a> | 021-77973360</div>
+              <div class="text-xs text-gray-500 mt-1">Insiden siber nasional</div>
+            </div>
+            <div class="bg-surface2 rounded-lg p-4">
+              <div class="font-semibold text-sm mb-1">👮 Bareskrim Polri (Subdit Siber)</div>
+              <div class="text-xs text-gray-400 mono"><a href="https://patrolisiber.id" class="text-blue-400 hover:underline">patrolisiber.id</a> | 110</div>
+              <div class="text-xs text-gray-500 mt-1">Kejahatan siber, penipuan online</div>
+            </div>
+            <div class="bg-surface2 rounded-lg p-4">
+              <div class="font-semibold text-sm mb-1">🏦 OJK (Otoritas Jasa Keuangan)</div>
+              <div class="text-xs text-gray-400 mono"><a href="https://www.ojk.go.id/" class="text-blue-400 hover:underline">ojk.go.id</a> | 157</div>
+              <div class="text-xs text-gray-500 mt-1">Penipuan finansial, investasi bodong</div>
+            </div>
+            <div class="bg-surface2 rounded-lg p-4">
+              <div class="font-semibold text-sm mb-1">📞 Hotline Bank Anda</div>
+              <div class="text-xs text-gray-400">BCA: 1500888 | BRI: 14017 | Mandiri: 14000 | BNI: 1500046</div>
+              <div class="text-xs text-gray-500 mt-1">Pemblokiran rekening/kartu darurat</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer class="border-t border-gray-800 py-10 px-6">
+  <div class="max-w-6xl mx-auto">
+    <div class="grid md:grid-cols-3 gap-8 mb-8">
+      <div>
+        <div class="font-bold mb-2 flex items-center gap-2">
+          <div class="w-6 h-6 bg-red-600 rounded flex items-center justify-center">
+            <svg class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+          </div>
+          <span class="font-bold text-sm tracking-wide">CyberAware<span class="text-red-500">KPTK</span></span>
+        </div>
+        <p class="text-xs text-gray-500">Modul edukasi keamanan siber untuk meningkatkan kesadaran masyarakat Indonesia terhadap ancaman digital.</p>
+      </div>
+      <div>
+        <div class="text-sm font-semibold mb-3">Referensi</div>
+        <div class="space-y-1 text-xs text-gray-500">
+          <div>BSSN — <a href="https://www.bssn.go.id/" class="text-blue-400 hover:underline">bssn.go.id</a></div>
+          <div>ID-SIRTII — <a href="https://idsirtii.or.id" class="text-blue-400 hover:underline">idsirtii.or.id</a></div>
+          <div>SANS Institute — <a href="https://www.sans.org" class="text-blue-400 hover:underline">sans.org</a></div>
+          <div>OWASP — <a href="https://owasp.org" class="text-blue-400 hover:underline">owasp.org</a></div>
+          <div>PhishTank — <a href="https://phishtank.com" class="text-blue-400 hover:underline">phishtank.com</a></div>
+        </div>
+      </div>
+      <div>
+        <div class="text-sm font-semibold mb-3">Tool Pengecekan URL</div>
+        <div class="space-y-1 text-xs text-gray-500">
+          <div>VirusTotal — <a href="https://www.virustotal.com" class="text-blue-400 hover:underline">virustotal.com</a></div>
+          <div>Google Safe Browsing — <a href="https://transparencyreport.google.com/safe-browsing" class="text-blue-400 hover:underline">google.com/safe-browsing</a></div>
+          <div>URLVoid — <a href="https://www.urlvoid.com" class="text-blue-400 hover:underline">urlvoid.com</a></div>
+          <div>PhishCheck — <a href="https://phishcheck.org" class="text-blue-400 hover:underline">phishcheck.org</a></div>
+          <div>Have I Been Pwned — <a href="https://haveibeenpwned.com" class="text-blue-400 hover:underline">haveibeenpwned.com</a></div>
+        </div>
+      </div>
+    </div>
+    <div class="border-t border-gray-800 pt-6 text-center">
+      <div class="warn-box max-w-2xl mx-auto text-xs">
+        <strong class="text-red-400">Disclaimer:</strong> Dokumen ini dibuat semata-mata untuk tujuan <strong class="text-white">edukasi dan kesadaran keamanan siber</strong>. Teknik yang dijelaskan tidak boleh digunakan untuk kegiatan ilegal. Melakukan serangan siber dapat dikenakan pidana berdasarkan <strong class="text-white">UU ITE No. 11 Tahun 2008</strong> jo. UU No. 19 Tahun 2016.
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script>
+  // Tab switching
+  function switchTab(tabId) {
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.style.color = '#6b7280';
+    });
+    document.getElementById('tab-' + tabId).classList.add('active');
+    event.target.classList.add('active');
+    event.target.style.color = 'white';
+  }
+
+  // Accordion
+  function toggleAccordion(btn) {
+    const body = btn.nextElementSibling;
+    const icon = btn.querySelector('.accordion-icon');
+    body.classList.toggle('open');
+    icon.classList.toggle('open');
+  }
+
+  // Checklist
+  function toggleCheck(el) {
+    el.classList.toggle('checked');
+    const checkmark = el.querySelector('svg');
+    if (el.classList.contains('checked')) {
+      el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/></svg>';
+    } else {
+      el.innerHTML = '';
+    }
+  }
+
+  // Scroll reveal
+  const observer = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) e.target.classList.add('visible');
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // Animate threat bars on scroll
+  const barObserver = new IntersectionObserver(entries => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.querySelectorAll('.threat-fill').forEach(fill => {
+          const w = fill.style.width;
+          fill.style.width = '0%';
+          setTimeout(() => fill.style.width = w, 100);
+        });
+      }
+    });
+  }, { threshold: 0.5 });
+  document.querySelectorAll('.tab-panel').forEach(p => barObserver.observe(p));
+</script>
+</body>
+</html>
